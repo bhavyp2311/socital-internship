@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/frontend/:path*",
+      "destination": "/:path*",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",
