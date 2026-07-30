@@ -63,6 +63,7 @@
   renderSidebar("wards");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   let allWards = [];
   async function loadWards() {
     try { allWards = await API.admin.getWards(); renderTable(allWards); }

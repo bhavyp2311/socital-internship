@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Submit Complaint — Municipal Services</title>
+  <title>Submit Complaint — Nagar AI</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
   <script src="../assets/js/theme.js"></script>
   <link rel="stylesheet" href="../assets/css/style.css" />
@@ -23,15 +23,6 @@
     <div class="card step-content" id="content-1">
       <div class="form-group"><label class="form-label">Title *</label><input type="text" id="title" class="form-input" placeholder="e.g. Pothole on Main Street" /></div>
       <div class="form-group"><label class="form-label">Description * <span style="font-weight:400;color:var(--text-muted)">(min 20 chars)</span></label><textarea id="description" class="form-input" rows="4" placeholder="Describe the issue in detail..." oninput="document.getElementById('char-count').textContent=this.value.length"></textarea><div style="font-size:var(--text-xs);color:var(--text-muted);text-align:right"><span id="char-count">0</span> characters</div></div>
-      <div class="form-group">
-        <label class="form-label">Priority</label>
-        <div style="display:flex;gap:8px">
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:var(--text-sm)"><input type="radio" name="priority" value="low" /> Low</label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:var(--text-sm)"><input type="radio" name="priority" value="medium" checked /> Medium</label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:var(--text-sm)"><input type="radio" name="priority" value="high" /> High</label>
-          <label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:var(--text-sm)"><input type="radio" name="priority" value="critical" /> Critical</label>
-        </div>
-      </div>
       <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="goStep(2)">Next: Location</button>
     </div>
     <!-- Step 2 -->
@@ -76,6 +67,7 @@
     Auth.require("citizen");
     renderTopnav("submit");
     Theme.apply();
+    loadNotifBadge();
     let map, marker, selectedFiles = [];
     function initMap() {
       map = L.map("map").setView([23.0225, 72.5714], 12);
@@ -136,13 +128,12 @@
       const btn = document.getElementById("submit-btn");
       const title = document.getElementById("title").value.trim();
       const description = document.getElementById("description").value.trim();
-      const priority = document.querySelector('input[name="priority"]:checked')?.value || "medium";
       if (!title) return toast("Title is required", "error");
       if (!description || description.length < 20) return toast("Description must be at least 20 characters", "error");
       setLoading(btn, true);
       try {
         const complaint = await API.citizen.submitComplaint({
-          title, description, priority,
+          title, description,
           latitude: parseFloat(document.getElementById("lat").value) || null,
           longitude: parseFloat(document.getElementById("lng").value) || null,
         });

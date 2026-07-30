@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notifications — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+        <span class="topbar-title">Notifications</span>
+        <div class="topbar-right">
+          <button class="btn btn-sm btn-ghost" id="mark-all-btn" onclick="markAllRead()">Mark all read</button>
+          <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()" title="Toggle theme"></button>
+        </div>
+      </header>
+      <div class="page-content">
+        <div class="notif-stats" id="notif-stats">
+          <div class="stat-card stat-accent"><div class="stat-label">Total</div><div class="stat-value" id="stat-total">—</div></div>
+          <div class="stat-card stat-warning"><div class="stat-label">Unread</div><div class="stat-value" id="stat-unread">—</div></div>
+          <div class="stat-card" style="border-top:3px solid var(--danger)"><div class="stat-label">High Priority</div><div class="stat-value" id="stat-high">—</div></div>
+          <div class="stat-card stat-success"><div class="stat-label">Read</div><div class="stat-value" id="stat-read">—</div></div>
+        </div>
+        <div class="filter-tabs" id="filter-tabs">
+          <button class="filter-tab active" data-filter="all">All</button>
+          <button class="filter-tab" data-filter="unread">Unread</button>
+          <button class="filter-tab" data-filter="high">High Priority</button>
+          <button class="filter-tab" data-filter="critical">Critical</button>
+          <button class="filter-tab" data-filter="complaint_submitted">Submitted</button>
+          <button class="filter-tab" data-filter="complaint_assigned">Assigned</button>
+          <button class="filter-tab" data-filter="complaint_resolved">Resolved</button>
+        </div>
+        <div class="notif-list" id="notif-list">
+          <div class="page-loader"><span class="spinner"></span> Loading notifications...</div>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+  </div>
+  <div id="toast-container"></div>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/icons.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script src="../assets/js/sidebar-admin.js"></script>
+  <script>
+    Auth.require("super_admin", "admin");
+    renderSidebar("notifications");
+    initSidebar();
+    Theme.apply();
+    loadNotifBadge();
+
+    let currentPage = 1;
+    let currentFilter = "all";
+    const LIMIT = 20;
+
+    const notifTypeIcons = {
+      complaint_submitted: I.filePlus,
+      complaint_assigned: I.userCheck,
+      complaint_updated: I.refreshCw,
+      complaint_resolved: I.checkCircle,
+      complaint_rejected: I.xCircle,
+      feedback_request: I.star,
+      system: I.bellDot,
+    };
+    const notifTypeLabels = {
+      complaint_submitted: "Submitted",
+      complaint_assigned: "Assigned",
+      complaint_updated: "Updated",
+      complaint_resolved: "Resolved",
+      complaint_rejected: "Rejected",
+      feedback_request: "Feedback",
+      system: "System",
+    };
+    const notifPriorityIcons = {
+      low: I.arrowRight,
+      medium: I.arrowRight,
+      high: I.alertTriangle,
+      critical: I.alertCircle,
+    };
+
+    function notifItem(n) {
+      const icon = notifTypeIcons[n.type] || I.bell;
+      const label = notifTypeLabels[n.type] || n.type;
+      const unread = !n.is_read ? "unread" : "";
+      const pIcon = notifPriorityIcons[n.priority] || "";
+      return `
+        <div class="notif-item ${unread}" onclick="markRead('${n.id}', this)" data-id="${n.id}">
+          <div class="notif-icon type-${n.type}">${icon}</div>
+          <div class="notif-body">
+            <div class="notif-header">
+              <span class="notif-title">${n.title}</span>
+            </div>
+            ${n.message ? `<div class="notif-msg">${n.message}</div>` : ""}
+            <div class="notif-meta">
+              <span class="notif-time">${I.clock} ${timeAgo(n.created_at)}</span>
+              <span class="notif-priority ${n.priority || 'medium'}">${pIcon} ${n.priority || 'medium'}</span>
+              <span class="notif-type-badge">${label}</span>
+            </div>
+            ${n.related_complaint ? `<div class="notif-actions"><a href="${getRolePath()}complaint-detail.html?id=${n.related_complaint}" class="btn btn-sm btn-ghost" onclick="event.stopPropagation()">View Complaint ${I.arrowRight}</a></div>` : ""}
+          </div>
+        </div>`;
+    }
+
+    function getRolePath() {
+      const path = window.location.pathname;
+      if (path.includes("/area_admin/")) return "../area_admin/";
+      if (path.includes("/worker/")) return "../worker/";
+      if (path.includes("/citizen/")) return "../citizen/";
+      return "";
+    }
+
+    async function loadNotifications(page = 1) {
+      currentPage = page;
+      const params = { page, limit: LIMIT };
+
+      if (currentFilter === "unread") params.is_read = "false";
+      else if (["low", "medium", "high", "critical"].includes(currentFilter)) params.priority = currentFilter;
+      else if (currentFilter !== "all") params.type = currentFilter;
+
+      try {
+        const data = await API.notifications.getAll(params);
+        document.getElementById("stat-total").textContent = data.total;
+        document.getElementById("stat-unread").textContent = data.unread_count;
+        document.getElementById("stat-read").textContent = data.total - data.unread_count;
+
+        // Count high priority
+        const highData = await API.notifications.getAll({ priority: "high", limit: 1 });
+        const criticalData = await API.notifications.getAll({ priority: "critical", limit: 1 });
+        document.getElementById("stat-high").textContent = (highData.total || 0) + (criticalData.total || 0);
+
+        const list = document.getElementById("notif-list");
+        if (!data.notifications.length) {
+          list.innerHTML = `<div class="empty-state"><div class="empty-icon">${I.bell}</div><p>No notifications found</p></div>`;
+          document.getElementById("pagination").innerHTML = "";
+          return;
+        }
+
+        list.innerHTML = data.notifications.map(notifItem).join("");
+        renderPagination(data.total, page);
+      } catch (err) {
+        toast(err.message, "error");
+      }
+    }
+
+    function renderPagination(total, page) {
+      const pages = Math.ceil(total / LIMIT);
+      if (pages <= 1) { document.getElementById("pagination").innerHTML = ""; return; }
+      let html = `<button ${page <= 1 ? "disabled" : ""} onclick="loadNotifications(${page - 1})">Prev</button>`;
+      for (let i = 1; i <= pages; i++) {
+        if (pages > 7 && i > 2 && i < pages - 1 && Math.abs(i - page) > 1) {
+          if (i === 3 || i === pages - 2) html += `<button disabled>...</button>`;
+          continue;
+        }
+        html += `<button class="${i === page ? 'active' : ''}" onclick="loadNotifications(${i})">${i}</button>`;
+      }
+      html += `<button ${page >= pages ? "disabled" : ""} onclick="loadNotifications(${page + 1})">Next</button>`;
+      document.getElementById("pagination").innerHTML = html;
+    }
+
+    async function markRead(id, el) {
+      try {
+        await API.notifications.markRead(id);
+        el.classList.remove("unread");
+        loadNotifBadge();
+      } catch {}
+    }
+
+    async function markAllRead() {
+      try {
+        await API.notifications.markAllRead();
+        toast("All notifications marked as read", "success");
+        loadNotifications(currentPage);
+        loadNotifBadge();
+      } catch (err) { toast(err.message, "error"); }
+    }
+
+    document.getElementById("filter-tabs").addEventListener("click", (e) => {
+      const tab = e.target.closest(".filter-tab");
+      if (!tab) return;
+      document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      currentFilter = tab.dataset.filter;
+      loadNotifications(1);
+    });
+
+    loadNotifications();
+  </script>
+</body>
+</html>

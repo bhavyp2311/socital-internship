@@ -1,4 +1,4 @@
-/* assets/css/style.css — Municipal System Design System */
+/* assets/css/style.css — Nagar AI Design System */
 
 /* ─── TOKENS (LIGHT) ─────────────────────────────────────────────────────── */
 :root {
@@ -431,12 +431,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .topnav-logo .logo-icon svg { width: 16px; height: 16px; }
 .topnav-links { display: flex; gap: 4px; margin-left: auto; }
-.topnav-links a {
+.topnav-links a, .topnav-notif-link {
   padding: 6px 14px; border-radius: var(--radius); font-size: var(--text-sm);
   color: var(--text-muted); transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 6px; position: relative;
 }
-.topnav-links a:hover { color: var(--text); background: var(--surface-2); }
-.topnav-links a.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
+.topnav-links a:hover, .topnav-notif-link:hover { color: var(--text); background: var(--surface-2); }
+.topnav-links a.active, .topnav-notif-link.active { color: var(--accent); background: var(--accent-light); font-weight: 600; }
+.topnav-notif-icon { display: inline-flex; align-items: center; }
 .topnav-right { display: flex; align-items: center; gap: 10px; margin-left: 24px; }
 .topnav-user {
   display: flex; align-items: center; gap: 8px;
@@ -671,3 +673,102 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* ─── NOTIFICATION BADGE (sidebar) ─────────────────────────────────────── */
+.nav-badge {
+  display: none;
+  align-items: center; justify-content: center;
+  min-width: 18px; height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: auto;
+}
+.topnav-notif-badge {
+  display: none;
+  align-items: center; justify-content: center;
+  min-width: 16px; height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  position: absolute;
+  top: -2px;
+  right: -4px;
+}
+
+/* ─── NOTIFICATION PAGE ────────────────────────────────────────────────── */
+.notif-list { display: flex; flex-direction: column; gap: 6px; }
+.notif-item {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 18px;
+  cursor: pointer; transition: all 0.15s;
+  position: relative; border-left: 3px solid transparent;
+}
+.notif-item:hover { border-color: var(--accent); border-left-color: var(--accent); }
+.notif-item.unread { background: var(--accent-light); border-color: var(--accent); border-left-color: var(--accent); }
+.notif-item.unread::after {
+  content: ''; position: absolute; top: 18px; right: 16px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+}
+.notif-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: grid; place-items: center; flex-shrink: 0;
+  font-size: 1rem;
+}
+.notif-icon.type-complaint_submitted { background: #dbeafe; color: #1d4ed8; }
+.notif-icon.type-complaint_assigned { background: #fef3c7; color: #b45309; }
+.notif-icon.type-complaint_updated { background: #e0e7ff; color: #4f46e5; }
+.notif-icon.type-complaint_resolved { background: #dcfce7; color: #15803d; }
+.notif-icon.type-complaint_rejected { background: #fee2e2; color: #b91c1c; }
+.notif-icon.type-feedback_request { background: #f3e8ff; color: #7c3aed; }
+.notif-icon.type-system { background: var(--surface-2); color: var(--text-muted); }
+[data-theme="dark"] .notif-icon.type-complaint_submitted { background: #1e3a5f; }
+[data-theme="dark"] .notif-icon.type-complaint_assigned { background: #422006; }
+[data-theme="dark"] .notif-icon.type-complaint_updated { background: #1e1b4b; }
+[data-theme="dark"] .notif-icon.type-complaint_resolved { background: #052e16; }
+[data-theme="dark"] .notif-icon.type-complaint_rejected { background: #450a0a; }
+[data-theme="dark"] .notif-icon.type-feedback_request { background: #2e1065; }
+[data-theme="dark"] .notif-icon.type-system { background: var(--surface-2); }
+.notif-body { flex: 1; min-width: 0; }
+.notif-header { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
+.notif-title { font-weight: 600; font-size: var(--text-sm); }
+.notif-msg { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.5; }
+.notif-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.notif-time { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--text-muted); }
+.notif-time svg { opacity: 0.6; }
+.notif-priority {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 8px; border-radius: 12px;
+  font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+}
+.notif-priority svg { width: 10px; height: 10px; }
+.notif-priority.low { background: #f3f4f6; color: #6b7280; }
+.notif-priority.medium { background: #dbeafe; color: #1d4ed8; }
+.notif-priority.high { background: #fef3c7; color: #b45309; }
+.notif-priority.critical { background: #fee2e2; color: #b91c1c; }
+[data-theme="dark"] .notif-priority.low { background: #1f2937; color: #9ca3af; }
+[data-theme="dark"] .notif-priority.medium { background: #1e3a5f; color: #60a5fa; }
+[data-theme="dark"] .notif-priority.high { background: #422006; color: #fbbf24; }
+[data-theme="dark"] .notif-priority.critical { background: #450a0a; color: #f87171; }
+.notif-type-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 12px;
+  font-size: 0.65rem; font-weight: 500;
+  background: var(--surface-2); color: var(--text-muted);
+}
+.notif-actions { display: flex; gap: 6px; margin-top: 10px; }
+.notif-actions .btn { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ─── NOTIFICATION STATS ───────────────────────────────────────────────── */
+.notif-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+@media (max-width: 768px) { .notif-stats { grid-template-columns: repeat(2, 1fr); } }

@@ -1,4 +1,5 @@
 import pool from "../db.js";
+import { createNotification } from "./notifications.service.js";
 
 function notFound(msg) { const e = new Error(msg); e.status = 404; return e; }
 function badRequest(msg) { const e = new Error(msg); e.status = 400; return e; }
@@ -173,6 +174,39 @@ export async function assignComplaint(ward_id, municipality_id, complaintId, { w
     [complaintId, remarks || `Assigned to worker`, null]
   );
 
+  // Notify the assigned worker
+  try {
+    const workerProfile = await pool.query(
+      `SELECT w.profile_id FROM workers w WHERE w.id = $1`, [worker_id]
+    );
+    const complaint = complaint.rows[0];
+    if (workerProfile.rows[0]?.profile_id) {
+      await createNotification({
+        user_id: workerProfile.rows[0].profile_id,
+        municipality_id,
+        title: "Complaint Assigned",
+        message: `You have been assigned complaint "${complaint.title}".`,
+        type: "complaint_assigned",
+        priority: complaint.priority || "medium",
+        related_complaint: complaintId,
+      });
+    }
+    // Notify the citizen
+    if (complaint.citizen_id) {
+      await createNotification({
+        user_id: complaint.citizen_id,
+        municipality_id,
+        title: "Complaint Assigned",
+        message: `Your complaint "${complaint.title}" has been assigned to a worker.`,
+        type: "complaint_assigned",
+        priority: complaint.priority || "medium",
+        related_complaint: complaintId,
+      });
+    }
+  } catch (err) {
+    console.error("Failed to create assignment notification:", err.message);
+  }
+
   return { success: true };
 }
 
@@ -207,6 +241,37 @@ export async function updateStatus(ward_id, municipality_id, complaintId, { stat
          WHERE id = $1`, [assignment.rows[0].worker_id]
       );
     }
+  }
+
+  // Notify citizen about status change
+  try {
+    const c = complaint.rows[0];
+    if (c.citizen_id) {
+      const statusMessages = {
+        resolved: "has been resolved",
+        completed: "has been completed",
+        rejected: "has been rejected",
+        closed: "has been closed",
+        in_progress: "is now in progress",
+      };
+      const notifType = status === "rejected" ? "complaint_rejected" :
+                        status === "completed" || status === "resolved" || status === "closed" ? "complaint_resolved" :
+                        "complaint_updated";
+      const notifPriority = status === "rejected" ? "high" :
+                            status === "completed" || status === "resolved" ? "low" :
+                            "medium";
+      await createNotification({
+        user_id: c.citizen_id,
+        municipality_id,
+        title: `Complaint ${status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")}`,
+        message: `Your complaint "${c.title}" ${statusMessages[status] || "has been updated"}.`,
+        type: notifType,
+        priority: notifPriority,
+        related_complaint: complaintId,
+      });
+    }
+  } catch (err) {
+    console.error("Failed to create status notification:", err.message);
   }
 
   return { success: true };

@@ -7,9 +7,9 @@ function handleError(res, err) {
 
 export async function getNotifications(req, res) {
   try {
-    const { is_read, page, limit } = req.query;
+    const { is_read, priority, type, page, limit } = req.query;
     const data = await notificationsService.getNotifications(req.user.sub, {
-      is_read, page: parseInt(page) || 1, limit: parseInt(limit) || 20,
+      is_read, priority, type, page: parseInt(page) || 1, limit: parseInt(limit) || 20,
     });
     res.json({ success: true, data });
   } catch (err) { handleError(res, err); }

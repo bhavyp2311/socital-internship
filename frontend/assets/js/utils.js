@@ -109,6 +109,19 @@ function themeToggleHTML() {
   return `<button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()" title="Toggle theme">${document.documentElement.getAttribute('data-theme')==='dark' ? sun : moon}</button>`;
 }
 
+function timeAgo(iso) {
+  if (!iso) return "";
+  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDate(iso);
+}
+
 window.toast = toast;
 window.openModal = openModal;
 window.closeModal = closeModal;
@@ -122,3 +135,4 @@ window.statusBadge = statusBadge;
 window.priorityBadge = priorityBadge;
 window.availabilityBadge = availabilityBadge;
 window.themeToggleHTML = themeToggleHTML;
+window.timeAgo = timeAgo;

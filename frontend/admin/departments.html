@@ -54,6 +54,7 @@
   renderSidebar("departments");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   async function loadDepts() {
     try {
       const data = await API.admin.getDepartments();

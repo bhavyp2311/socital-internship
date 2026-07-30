@@ -74,6 +74,7 @@
   renderSidebar("complaints");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   const params = new URLSearchParams(window.location.search);
   const complaintId = params.get("id");
   let complaintData = null;

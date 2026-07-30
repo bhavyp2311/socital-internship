@@ -69,6 +69,7 @@
   renderSidebar("invite");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   async function loadWards() {
     try {
       const wards = await API.admin.getWards();

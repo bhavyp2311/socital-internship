@@ -1,5 +1,6 @@
 import pool from "../db.js";
 import { classifyComplaint } from "./ai.service.js";
+import { createNotification } from "./notifications.service.js";
 
 function notFound(msg) { const e = new Error(msg); e.status = 404; return e; }
 function badRequest(msg) { const e = new Error(msg); e.status = 400; return e; }
@@ -130,6 +131,62 @@ export async function submitComplaint(citizenId, municipality_id, { title, descr
   }).catch(() => {});
 
   complaint._auto_assigned = autoAssigned;
+
+  // 6. Create notifications
+  try {
+    // Notify area admins in the ward (or municipality) about new complaint
+    if (ward_id) {
+      const areaAdmins = await pool.query(
+        `SELECT wa.profile_id FROM ward_admins wa WHERE wa.ward_id = $1`, [ward_id]
+      );
+      for (const admin of areaAdmins.rows) {
+        await createNotification({
+          user_id: admin.profile_id,
+          municipality_id,
+          title: "New Complaint Submitted",
+          message: `Complaint "${title}" has been submitted and needs attention.`,
+          type: "complaint_submitted",
+          priority: safePriority,
+          related_complaint: complaint.id,
+        });
+      }
+    }
+
+    // If auto-assigned, notify the worker
+    if (autoAssigned) {
+      const assignment = await pool.query(
+        `SELECT ca.worker_id, w.profile_id FROM complaint_assignments ca
+         JOIN workers w ON w.id = ca.worker_id
+         WHERE ca.complaint_id = $1 ORDER BY ca.assigned_at DESC LIMIT 1`,
+        [complaint.id]
+      );
+      if (assignment.rows[0]?.profile_id) {
+        await createNotification({
+          user_id: assignment.rows[0].profile_id,
+          municipality_id,
+          title: "New Complaint Assigned",
+          message: `You have been assigned complaint "${title}".`,
+          type: "complaint_assigned",
+          priority: safePriority,
+          related_complaint: complaint.id,
+        });
+      }
+    }
+
+    // Notify citizen about submission confirmation
+    await createNotification({
+      user_id: citizenId,
+      municipality_id,
+      title: "Complaint Submitted",
+      message: `Your complaint "${title}" has been submitted successfully.`,
+      type: "complaint_submitted",
+      priority: safePriority,
+      related_complaint: complaint.id,
+    });
+  } catch (err) {
+    console.error("Failed to create notification:", err.message);
+  }
+
   return complaint;
 }
 
@@ -227,6 +284,34 @@ export async function submitFeedback(citizenId, complaintId, { rating, review })
      RETURNING *`,
     [complaintId, citizenId, rating, review || null]
   );
+
+  // Notify area admins about feedback
+  try {
+    const complaint = await pool.query(
+      `SELECT municipality_id, ward_id, title FROM complaints WHERE id = $1`, [complaintId]
+    );
+    if (complaint.rows[0]) {
+      const c = complaint.rows[0];
+      if (c.ward_id) {
+        const areaAdmins = await pool.query(
+          `SELECT profile_id FROM ward_admins WHERE ward_id = $1`, [c.ward_id]
+        );
+        for (const admin of areaAdmins.rows) {
+          await createNotification({
+            user_id: admin.profile_id,
+            municipality_id: c.municipality_id,
+            title: "Feedback Received",
+            message: `Citizen left a ${rating}-star rating for complaint "${c.title}".`,
+            type: "feedback_request",
+            priority: "low",
+            related_complaint: complaintId,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Failed to create feedback notification:", err.message);
+  }
 
   return result.rows[0];
 }

@@ -77,6 +77,7 @@
     renderSidebar("dashboard");
     initSidebar();
     Theme.apply();
+    loadNotifBadge();
     document.getElementById("quick-links").innerHTML = [
       { href: "wards.html", icon: I.mapPin, title: "Manage Wards", desc: "Add or edit ward areas" },
       { href: "departments.html", icon: I.building2, title: "Departments", desc: "Manage city departments" },

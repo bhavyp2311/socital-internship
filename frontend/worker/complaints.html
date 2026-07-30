@@ -49,6 +49,7 @@
   renderSidebar("complaints");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   let currentPage = 1;
   async function loadComplaints() {
     const params = { status: document.getElementById("status-filter").value, page: currentPage, limit: 20 };

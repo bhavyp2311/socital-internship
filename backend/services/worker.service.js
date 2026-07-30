@@ -1,4 +1,5 @@
 import pool from "../db.js";
+import { createNotification } from "./notifications.service.js";
 
 function notFound(msg) { const e = new Error(msg); e.status = 404; return e; }
 function badRequest(msg) { const e = new Error(msg); e.status = 400; return e; }
@@ -133,6 +134,27 @@ export async function acceptComplaint(workerId, complaintId) {
     [complaintId]
   );
 
+  // Notify citizen
+  try {
+    const complaint = await pool.query(
+      `SELECT citizen_id, municipality_id, title FROM complaints WHERE id = $1`, [complaintId]
+    );
+    if (complaint.rows[0]?.citizen_id) {
+      const c = complaint.rows[0];
+      await createNotification({
+        user_id: c.citizen_id,
+        municipality_id: c.municipality_id,
+        title: "Complaint Accepted",
+        message: `Your complaint "${c.title}" has been accepted by a worker.`,
+        type: "complaint_updated",
+        priority: "medium",
+        related_complaint: complaintId,
+      });
+    }
+  } catch (err) {
+    console.error("Failed to create notification:", err.message);
+  }
+
   return { success: true };
 }
 
@@ -158,6 +180,27 @@ export async function startComplaint(workerId, complaintId) {
      VALUES ($1, 'in_progress', 'Worker started working on complaint', NULL)`,
     [complaintId]
   );
+
+  // Notify citizen
+  try {
+    const complaint = await pool.query(
+      `SELECT citizen_id, municipality_id, title FROM complaints WHERE id = $1`, [complaintId]
+    );
+    if (complaint.rows[0]?.citizen_id) {
+      const c = complaint.rows[0];
+      await createNotification({
+        user_id: c.citizen_id,
+        municipality_id: c.municipality_id,
+        title: "Complaint In Progress",
+        message: `Your complaint "${c.title}" is now being worked on.`,
+        type: "complaint_updated",
+        priority: "medium",
+        related_complaint: complaintId,
+      });
+    }
+  } catch (err) {
+    console.error("Failed to create notification:", err.message);
+  }
 
   return { success: true };
 }
@@ -189,6 +232,48 @@ export async function completeComplaint(workerId, complaintId, { remarks }) {
      VALUES ($1, 'completed', $2, NULL)`,
     [complaintId, remarks || "Complaint resolved by worker"]
   );
+
+  // Notify citizen
+  try {
+    const complaint = await pool.query(
+      `SELECT citizen_id, municipality_id, title FROM complaints WHERE id = $1`, [complaintId]
+    );
+    if (complaint.rows[0]?.citizen_id) {
+      const c = complaint.rows[0];
+      await createNotification({
+        user_id: c.citizen_id,
+        municipality_id: c.municipality_id,
+        title: "Complaint Resolved",
+        message: `Your complaint "${c.title}" has been resolved. Please verify and leave feedback.`,
+        type: "complaint_resolved",
+        priority: "low",
+        related_complaint: complaintId,
+      });
+    }
+
+    // Notify area admins
+    const wardRes = await pool.query(
+      `SELECT ward_id FROM complaints WHERE id = $1`, [complaintId]
+    );
+    if (wardRes.rows[0]?.ward_id) {
+      const areaAdmins = await pool.query(
+        `SELECT profile_id FROM ward_admins WHERE ward_id = $1`, [wardRes.rows[0].ward_id]
+      );
+      for (const admin of areaAdmins.rows) {
+        await createNotification({
+          user_id: admin.profile_id,
+          municipality_id: complaint.rows[0].municipality_id,
+          title: "Complaint Completed",
+          message: `Complaint "${complaint.rows[0].title}" has been completed by a worker.`,
+          type: "complaint_resolved",
+          priority: "low",
+          related_complaint: complaintId,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Failed to create notification:", err.message);
+  }
 
   return { success: true };
 }

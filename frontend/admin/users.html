@@ -55,6 +55,7 @@
   renderSidebar("users");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   let allUsers = [];
   const roleColors = { super_admin:"badge-danger", admin:"badge-warning", area_admin:"badge-info", worker:"badge-muted", citizen:"badge-success" };
   async function loadUsers() {

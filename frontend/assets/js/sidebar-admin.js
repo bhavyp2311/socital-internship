@@ -5,14 +5,18 @@ function renderSidebar(activePage) {
     <div class="sidebar-logo">
       <div class="logo-icon">${I.building}</div>
       <div>
-        <div class="logo-text">Municipal</div>
-        <div class="logo-sub">Management System</div>
+        <div class="logo-text">Nagar AI</div>
+        <div class="logo-sub">Admin Portal</div>
       </div>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">Main</div>
       <a href="dashboard.html" class="nav-item ${activePage==='dashboard'?'active':''}">
         <span class="icon">${I.barChart}</span> Dashboard
+      </a>
+      <a href="notifications.html" class="nav-item ${activePage==='notifications'?'active':''}">
+        <span class="icon">${I.bell}</span> Notifications
+        <span class="nav-badge" id="notif-badge"></span>
       </a>
       <div class="nav-section">Setup</div>
       <a href="municipalities.html" class="nav-item ${activePage==='municipalities'?'active':''}">
@@ -56,6 +60,20 @@ function closeSidebar() {
   document.getElementById("sidebar-overlay")?.classList.remove("open");
 }
 
+async function loadNotifBadge() {
+  try {
+    const data = await API.notifications.getAll({ is_read: "false", limit: 1 });
+    const badge = document.getElementById("notif-badge");
+    if (badge && data.unread_count > 0) {
+      badge.textContent = data.unread_count > 99 ? "99+" : data.unread_count;
+      badge.style.display = "flex";
+    } else if (badge) {
+      badge.style.display = "none";
+    }
+  } catch {}
+}
+
 window.renderSidebar = renderSidebar;
 window.openSidebar = openSidebar;
 window.closeSidebar = closeSidebar;
+window.loadNotifBadge = loadNotifBadge;

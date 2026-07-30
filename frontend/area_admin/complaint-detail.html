@@ -76,6 +76,7 @@
   renderSidebar("complaints");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   const params = new URLSearchParams(window.location.search);
   const complaintId = params.get("id");
   if (!complaintId) { document.querySelector(".page-content").innerHTML = '<div class="empty-state"><p>No complaint ID provided</p><a href="complaints.html" class="btn btn-primary" style="margin-top:12px">Back to list</a></div>'; }

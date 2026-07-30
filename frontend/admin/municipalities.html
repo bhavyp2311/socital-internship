@@ -58,6 +58,7 @@
   renderSidebar("municipalities");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   async function loadMunis() {
     try {
       const data = await API.admin.getMunicipalities();

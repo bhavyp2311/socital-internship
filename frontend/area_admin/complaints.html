@@ -72,6 +72,7 @@
   renderSidebar("complaints");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   let currentPage = 1, selectedWorker = null, assigningId = null;
   async function loadComplaints() {
     const params = {

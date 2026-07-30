@@ -1,22 +1,26 @@
 import pool from "../db.js";
 
+const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
+
 export async function createNotification({
   user_id,
   municipality_id,
   title,
   message,
   type,
+  priority,
   related_complaint,
 }) {
+  const safePriority = VALID_PRIORITIES.includes(priority) ? priority : "medium";
   const result = await pool.query(
-    `INSERT INTO notifications (user_id, municipality_id, title, message, type, related_complaint)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [user_id, municipality_id, title, message, type, related_complaint || null]
+    `INSERT INTO notifications (user_id, municipality_id, title, message, type, priority, related_complaint)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [user_id, municipality_id, title, message, type, safePriority, related_complaint || null]
   );
   return result.rows[0];
 }
 
-export async function getNotifications(user_id, { is_read, page = 1, limit = 20 } = {}) {
+export async function getNotifications(user_id, { is_read, priority, type, page = 1, limit = 20 } = {}) {
   const offset = (page - 1) * limit;
   let where = "WHERE user_id = $1";
   const params = [user_id];
@@ -25,6 +29,18 @@ export async function getNotifications(user_id, { is_read, page = 1, limit = 20 
   if (is_read === "true" || is_read === "false") {
     where += ` AND is_read = $${idx}`;
     params.push(is_read === "true");
+    idx++;
+  }
+
+  if (priority && VALID_PRIORITIES.includes(priority)) {
+    where += ` AND priority = $${idx}`;
+    params.push(priority);
+    idx++;
+  }
+
+  if (type) {
+    where += ` AND type = $${idx}`;
+    params.push(type);
     idx++;
   }
 

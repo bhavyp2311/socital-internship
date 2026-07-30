@@ -53,6 +53,7 @@
   renderSidebar("zones");
   initSidebar();
   Theme.apply();
+  loadNotifBadge();
   async function loadZones() {
     try {
       const data = await API.admin.getZones();
