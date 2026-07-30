@@ -2,7 +2,7 @@
  * assets/js/api.js — Central API layer
  */
 
-const BASE_URLad = "/api";
+const BASE_URL = "/api";
 
 function getToken() {
   return localStorage.getItem("access_token");
