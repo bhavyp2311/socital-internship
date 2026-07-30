@@ -26,17 +26,17 @@ const Auth = {
 
   logout() {
     localStorage.clear();
-    window.location.href = "/frontend/auth/login.html";
+    window.location.href = "/auth/login.html";
   },
 
   // Call at top of every protected page with the allowed roles
   require(...roles) {
     if (!this.isLoggedIn()) {
-      window.location.href = "/frontend/auth/login.html";
+      window.location.href = "/auth/login.html";
       return false;
     }
     if (roles.length && !roles.includes(this.getRole())) {
-      window.location.href = "/frontend/auth/login.html";
+      window.location.href = "/auth/login.html";
       return false;
     }
     return true;
@@ -46,11 +46,11 @@ const Auth = {
   redirectToDashboard() {
     const role = this.getRole();
     const map = {
-      super_admin: "/frontend/admin/dashboard.html",
-      admin:       "/frontend/admin/dashboard.html",
-      area_admin:  "/frontend/area_admin/dashboard.html",
-      worker:      "/frontend/worker/dashboard.html",
-      citizen:     "/frontend/citizen/dashboard.html",
+      super_admin: "/admin/dashboard.html",
+      admin:       "/admin/dashboard.html",
+      area_admin:  "/area_admin/dashboard.html",
+      worker:      "/worker/dashboard.html",
+      citizen:     "/citizen/dashboard.html",
     };
     if (map[role]) window.location.href = map[role];
   },
