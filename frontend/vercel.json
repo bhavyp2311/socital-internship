@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://nagar-ai-backend.onrender.com/api/:path*"
+      "destination": "https://socital-internship.onrender.com/api/:path*"
     }
   ],
   "headers": [
