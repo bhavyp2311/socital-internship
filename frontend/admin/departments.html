@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Departments — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Departments</span>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openModal('dept-modal')">+ Add Department</button>
+        <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button>
+      </div>
+    </header>
+    <div class="page-content">
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Department Name</th><th>Description</th><th>Workers</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody id="dept-tbody"><tr><td colspan="5"><div class="page-loader"><span class="spinner"></span> Loading...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="dept-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 class="modal-title" id="modal-title">Add Department</h2><button class="modal-close" onclick="closeModal('dept-modal')">&times;</button></div>
+    <input type="hidden" id="edit-id" />
+    <div class="form-group"><label class="form-label">Department Name *</label><input type="text" id="dept-name" class="form-input" placeholder="e.g. Sanitation" /></div>
+    <div class="form-group"><label class="form-label">Description</label><textarea id="dept-desc" class="form-input" rows="3" placeholder="What does this department handle?"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('dept-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveDept()">Save</button>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-admin.js"></script>
+<script>
+  Auth.require("super_admin", "admin");
+  renderSidebar("departments");
+  initSidebar();
+  Theme.apply();
+  async function loadDepts() {
+    try {
+      const data = await API.admin.getDepartments();
+      const tbody = document.getElementById("dept-tbody");
+      if (!data.length) { tbody.innerHTML = emptyRow(5, "No departments yet."); return; }
+      tbody.innerHTML = data.map(d => `<tr>
+        <td><span style="font-weight:600">${d.name}</span></td>
+        <td style="color:var(--text-muted);max-width:280px">${d.description || "—"}</td>
+        <td><span class="badge badge-muted">${d.worker_count || 0} workers</span></td>
+        <td style="color:var(--text-muted)">${formatDate(d.created_at)}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick='editDept(${JSON.stringify(d)})'>${I.edit}</button>
+          <button class="btn-icon" onclick="deleteDept('${d.id}')">${I.trash}</button>
+        </td>
+      </tr>`).join("");
+    } catch (err) { toast(err.message, "error"); }
+  }
+  function editDept(d) {
+    document.getElementById("modal-title").textContent = "Edit Department";
+    document.getElementById("edit-id").value = d.id;
+    document.getElementById("dept-name").value = d.name;
+    document.getElementById("dept-desc").value = d.description || "";
+    openModal("dept-modal");
+  }
+  function resetForm() {
+    document.getElementById("modal-title").textContent = "Add Department";
+    document.getElementById("edit-id").value = "";
+    document.getElementById("dept-name").value = "";
+    document.getElementById("dept-desc").value = "";
+  }
+  async function saveDept() {
+    const btn = document.getElementById("save-btn");
+    const id = document.getElementById("edit-id").value;
+    const body = { name: document.getElementById("dept-name").value.trim(), description: document.getElementById("dept-desc").value.trim() };
+    if (!body.name) return toast("Department name is required", "error");
+    setLoading(btn, true);
+    try {
+      if (id) { await API.admin.updateDepartment(id, body); toast("Department updated", "success"); }
+      else { await API.admin.createDepartment(body); toast("Department created", "success"); }
+      closeModal("dept-modal"); resetForm(); loadDepts();
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(btn, false); }
+  }
+  async function deleteDept(id) {
+    if (!confirmDelete("Delete this department?")) return;
+    try { await API.admin.deleteDepartment(id); toast("Deleted", "success"); loadDepts(); }
+    catch (err) { toast(err.message, "error"); }
+  }
+  loadDepts();
+</script>
+</body>
+</html>

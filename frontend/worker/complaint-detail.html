@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaint Detail — Worker</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Complaint Detail</span>
+      <div class="topbar-right"><button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button></div>
+    </header>
+    <div class="page-content">
+      <div class="detail-grid">
+        <div class="detail-main">
+          <div class="card" id="complaint-card"><div class="page-loader"><span class="spinner"></span></div></div>
+          <div class="card" id="map-card" style="display:none"><div class="map-container" id="map"></div></div>
+          <div class="card" id="images-card" style="display:none">
+            <div class="card-header"><h2 class="card-title">Images</h2></div>
+            <div class="image-grid" id="images-grid"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Timeline</h2></div>
+            <div class="timeline" id="timeline"></div>
+          </div>
+        </div>
+        <div class="detail-side">
+          <div class="card" id="action-card">
+            <div class="card-header"><h2 class="card-title">Action</h2></div>
+            <div id="action-content"></div>
+          </div>
+          <div class="card" id="upload-card" style="display:none">
+            <div class="card-header"><h2 class="card-title">Upload Image</h2></div>
+            <div class="form-group">
+              <label class="form-label">Image Type</label>
+              <select id="image-type" class="form-input form-select">
+                <option value="progress">Progress</option>
+                <option value="after">After</option>
+              </select>
+            </div>
+            <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+              <input type="file" id="file-input" accept="image/*" onchange="handleFile(this)" />
+              <p style="font-size:var(--text-sm)">Click to select or drop an image here</p>
+              <p style="font-size:var(--text-xs);color:var(--text-muted)">Max 5MB, images only</p>
+            </div>
+            <div id="preview" style="margin-top:10px"></div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:10px" id="upload-btn" onclick="uploadImg()" disabled>Upload Image</button>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Citizen</h2></div>
+            <div id="citizen-info" style="font-size:var(--text-sm)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-worker.js"></script>
+<script>
+  Auth.require("worker");
+  renderSidebar("complaints");
+  initSidebar();
+  Theme.apply();
+  const params = new URLSearchParams(window.location.search);
+  const complaintId = params.get("id");
+  let complaintData = null;
+  let selectedFile = null;
+
+  async function loadComplaint() {
+    try {
+      complaintData = await API.worker.getComplaint(complaintId);
+      const c = complaintData;
+      document.getElementById("complaint-card").innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+          <div><span style="font-family:monospace;font-size:var(--text-sm);color:var(--text-muted)">${c.complaint_no || ""}</span><h2 style="font-size:var(--text-lg);font-weight:700;margin:4px 0">${c.title}</h2></div>
+          <div>${priorityBadge(c.priority)} ${statusBadge(c.status)}</div>
+        </div>
+        <p style="color:var(--text-muted);font-size:var(--text-sm);margin-bottom:16px">${c.description || ""}</p>
+        <div style="font-size:var(--text-xs);color:var(--text-muted)">Submitted: ${formatDateTime(c.created_at)}</div>`;
+
+      if (c.latitude && c.longitude) {
+        document.getElementById("map-card").style.display = "block";
+        const map = L.map("map").setView([c.latitude, c.longitude], 15);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "OpenStreetMap" }).addTo(map);
+        L.marker([c.latitude, c.longitude]).addTo(map);
+      }
+
+      if (c.images && c.images.length) {
+        document.getElementById("images-card").style.display = "block";
+        document.getElementById("images-grid").innerHTML = c.images.map(img => `<img src="${img.image_url}" alt="" />`).join("");
+      }
+
+      if (c.ai_classification) {
+        const ai = c.ai_classification;
+        const catLabels = { road_damage:"Road Damage", garbage:"Garbage/Waste", streetlight:"Streetlight", water_supply:"Water Supply", drainage:"Drainage", noise:"Noise", property_damage:"Property Damage", animal_control:"Animal Control", public_safety:"Public Safety", vegetation:"Vegetation", other:"Other" };
+        document.getElementById("complaint-card").innerHTML += `
+          <div style="margin-top:16px;padding:12px;background:var(--accent-light);border-radius:var(--radius);border:1px solid var(--accent)">
+            <div style="font-size:var(--text-xs);font-weight:600;color:var(--accent);margin-bottom:6px">${I.cpu} AI CLASSIFICATION</div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:var(--text-sm)">
+              <span><strong>${catLabels[ai.detected_category] || ai.detected_category}</strong></span>
+              <span>Confidence: ${Math.round((ai.confidence || 0) * 100)}%</span>
+              <span>Dept: ${ai.department || "General"}</span>
+            </div>
+          </div>`;
+      }
+
+      document.getElementById("timeline").innerHTML = c.timeline && c.timeline.length ? c.timeline.map(t => `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>${statusBadge(t.status)}</strong><div style="margin-top:2px">${t.remarks || ""}</div><div class="timeline-date">${formatDateTime(t.created_at)}</div></div></div>`).join("") : '<p style="color:var(--text-muted);font-size:var(--text-sm)">No timeline entries</p>';
+
+      document.getElementById("citizen-info").innerHTML = `<strong>${c.citizen_name || ""}</strong><br><span style="color:var(--text-muted)">${c.citizen_phone || ""}</span>`;
+
+      const assignment = c.assignment;
+      let actionHTML = "";
+      if (assignment.status === "assigned") actionHTML = `<button class="btn btn-success" style="width:100%;justify-content:center" onclick="doAction('accept')">Accept Complaint</button>`;
+      else if (assignment.status === "accepted") actionHTML = `<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doAction('start')">Start Working</button>`;
+      else if (assignment.status === "in_progress") {
+        const hasImage = c.images && c.images.length > 0;
+        actionHTML = `<div class="form-group"><label class="form-label">Completion Remarks</label><textarea id="complete-remarks" class="form-input" rows="2" placeholder="Describe the resolution"></textarea></div>
+          ${!hasImage ? '<p style="font-size:var(--text-xs);color:var(--warning);margin-bottom:8px">Upload at least one image before completing</p>' : ''}
+          <button class="btn btn-success" style="width:100%;justify-content:center" onclick="doAction('complete')" ${!hasImage ? 'disabled title="Upload an image first"' : ''}>Mark as Complete</button>`;
+        document.getElementById("upload-card").style.display = "block";
+      } else {
+        actionHTML = `<p style="font-size:var(--text-sm);color:var(--text-muted)">This complaint is ${assignment.status}. No actions available.</p>`;
+      }
+      document.getElementById("action-content").innerHTML = actionHTML;
+    } catch (err) { toast(err.message, "error"); }
+  }
+
+  async function doAction(action) {
+    try {
+      if (action === "accept") await API.worker.accept(complaintId);
+      else if (action === "start") await API.worker.start(complaintId);
+      else if (action === "complete") {
+        if (!complaintData.images || complaintData.images.length === 0) {
+          toast("Upload at least one image before completing", "error");
+          return;
+        }
+        const remarks = document.getElementById("complete-remarks")?.value.trim();
+        await API.worker.complete(complaintId, { remarks });
+      }
+      toast("Action completed", "success");
+      loadComplaint();
+    } catch (err) { toast(err.message, "error"); }
+  }
+
+  function handleFile(input) {
+    selectedFile = input.files[0];
+    if (!selectedFile) return;
+    if (selectedFile.size > 5 * 1024 * 1024) { toast("Max 5MB per image", "error"); selectedFile = null; return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById("preview").innerHTML = `<img src="${e.target.result}" style="max-height:120px;border-radius:var(--radius);border:1px solid var(--border)" />`;
+    };
+    reader.readAsDataURL(selectedFile);
+    document.getElementById("upload-btn").disabled = false;
+  }
+
+  async function uploadImg() {
+    if (!selectedFile) return;
+    const btn = document.getElementById("upload-btn");
+    setLoading(btn, true);
+    try {
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+      formData.append("image_type", document.getElementById("image-type").value);
+      await API.worker.uploadImage(complaintId, formData);
+      toast("Image uploaded!", "success");
+      selectedFile = null;
+      document.getElementById("preview").innerHTML = "";
+      document.getElementById("upload-btn").disabled = true;
+      loadComplaint();
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(btn, false); }
+  }
+
+  if (complaintId) loadComplaint();
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Worker</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Dashboard</span>
+      <div class="topbar-right">
+        <span id="topbar-date" style="font-size:var(--text-xs);color:var(--text-muted)"></span>
+        <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button>
+      </div>
+    </header>
+    <div class="page-content">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div><h2 style="font-size:var(--text-xl);font-weight:700" id="worker-name"></h2><p style="font-size:var(--text-sm);color:var(--text-muted)" id="worker-rating"></p></div>
+        <div style="display:flex;gap:6px" id="avail-btns"></div>
+      </div>
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-card stat-accent"><div class="stat-label">Total Assigned</div><div class="stat-value" id="stat-total">&mdash;</div></div>
+        <div class="stat-card stat-warning"><div class="stat-label">Accepted</div><div class="stat-value" id="stat-accepted">&mdash;</div></div>
+        <div class="stat-card" style="border-top:3px solid var(--info)"><div class="stat-label">In Progress</div><div class="stat-value" id="stat-inprogress">&mdash;</div></div>
+        <div class="stat-card stat-success"><div class="stat-label">Completed Today</div><div class="stat-value" id="stat-completed-today">&mdash;</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Recent Complaints</h2><a href="complaints.html" class="btn btn-sm btn-ghost">View All</a></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>No.</th><th>Title</th><th>Priority</th><th>Status</th><th>Assigned</th></tr></thead>
+            <tbody id="recent-tbody"><tr><td colspan="5"><div class="page-loader"><span class="spinner"></span></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-worker.js"></script>
+<script>
+  Auth.require("worker");
+  renderSidebar("dashboard");
+  initSidebar();
+  Theme.apply();
+  document.getElementById("topbar-date").textContent = new Date().toLocaleDateString("en-IN", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+  async function loadDashboard() {
+    try {
+      const d = await API.worker.dashboard();
+      document.getElementById("worker-name").textContent = d.info.full_name || "Worker";
+      document.getElementById("worker-rating").textContent = `Rating: ${d.info.rating || 0}/5 • Workload: ${d.info.current_workload || 0}`;
+      const avail = d.info.availability || "available";
+      document.getElementById("avail-btns").innerHTML = ["available","busy","off_duty"].map(a =>
+        `<button class="btn ${avail===a?'btn-primary':'btn-ghost'} btn-sm" onclick="setAvail('${a}')">${a.replace("_"," ")}</button>`
+      ).join("");
+      document.getElementById("stat-total").textContent = d.stats.total;
+      document.getElementById("stat-accepted").textContent = d.stats.accepted;
+      document.getElementById("stat-inprogress").textContent = d.stats.in_progress;
+      document.getElementById("stat-completed-today").textContent = d.stats.completed_today;
+      const tbody = document.getElementById("recent-tbody");
+      if (!d.recent.length) { tbody.innerHTML = emptyRow(5, "No assigned complaints yet."); return; }
+      tbody.innerHTML = d.recent.map(c => `<tr style="cursor:pointer" onclick="location.href='complaint-detail.html?id=${c.id}'">
+        <td><span style="font-family:monospace;font-weight:600">${c.complaint_no || "—"}</span></td>
+        <td>${c.title}</td>
+        <td>${priorityBadge(c.priority)}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td style="color:var(--text-muted)">${formatDate(c.assigned_at)}</td>
+      </tr>`).join("");
+    } catch (err) { toast(err.message, "error"); }
+  }
+  async function setAvail(a) {
+    try { await API.worker.setAvailability({ availability: a }); toast("Availability updated", "success"); loadDashboard(); }
+    catch (err) { toast(err.message, "error"); }
+  }
+  loadDashboard();
+</script>
+</body>
+</html>

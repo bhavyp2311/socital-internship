@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaint Detail — Area Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Complaint Detail</span>
+      <div class="topbar-right"><button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button></div>
+    </header>
+    <div class="page-content">
+      <div class="detail-grid">
+        <div class="detail-main">
+          <div class="card" id="complaint-card"><div class="page-loader"><span class="spinner"></span></div></div>
+          <div class="card" id="map-card" style="display:none"><div class="map-container" id="map"></div></div>
+          <div class="card" id="images-card" style="display:none">
+            <div class="card-header"><h2 class="card-title">Images</h2></div>
+            <div class="image-grid" id="images-grid"></div>
+          </div>
+          <div class="card" id="ai-card" style="display:none">
+            <div class="card-header"><h2 class="card-title">AI Classification</h2></div>
+            <div id="ai-info"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2 class="card-title">Timeline</h2></div>
+            <div class="timeline" id="timeline"></div>
+          </div>
+        </div>
+        <div class="detail-side">
+          <div class="card" id="status-card">
+            <div class="card-header"><h2 class="card-title">Update Status</h2></div>
+            <div class="form-group"><label class="form-label">Status</label><select id="new-status" class="form-input form-select">
+              <option value="pending">Pending</option><option value="assigned">Assigned</option>
+              <option value="in_progress">In Progress</option><option value="completed">Completed</option>
+              <option value="verified">Verified</option><option value="closed">Closed</option>
+              <option value="rejected">Rejected</option>
+            </select></div>
+            <div class="form-group"><label class="form-label">Remarks</label><textarea id="remarks" class="form-input" rows="2" placeholder="Optional remarks"></textarea></div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="updateStatus()">Update Status</button>
+          </div>
+          <div class="card" id="assignment-card">
+            <div class="card-header"><h2 class="card-title">Assignment</h2></div>
+            <div id="assignment-info"></div>
+          </div>
+          <div class="card" id="citizen-card">
+            <div class="card-header"><h2 class="card-title">Citizen</h2></div>
+            <div id="citizen-info"></div>
+          </div>
+          <div class="card" id="feedback-card" style="display:none">
+            <div class="card-header"><h2 class="card-title">Feedback</h2></div>
+            <div id="feedback-info"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-area.js"></script>
+<script>
+  Auth.require("area_admin", "admin", "super_admin");
+  renderSidebar("complaints");
+  initSidebar();
+  Theme.apply();
+  const params = new URLSearchParams(window.location.search);
+  const complaintId = params.get("id");
+  if (!complaintId) { document.querySelector(".page-content").innerHTML = '<div class="empty-state"><p>No complaint ID provided</p><a href="complaints.html" class="btn btn-primary" style="margin-top:12px">Back to list</a></div>'; }
+
+  let complaintData = null;
+  async function loadComplaint() {
+    try {
+      complaintData = await API.areaAdmin.getComplaint(complaintId);
+      const c = complaintData;
+      document.getElementById("complaint-card").innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+          <div><span style="font-family:monospace;font-size:var(--text-sm);color:var(--text-muted)">${c.complaint_no || ""}</span><h2 style="font-size:var(--text-lg);font-weight:700;margin:4px 0">${c.title}</h2></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:end">${priorityBadge(c.priority)} ${c.ai_priority && c.ai_priority !== c.priority ? `<span style="font-size:var(--text-xs);color:var(--accent)">AI: ${c.ai_priority}</span>` : ''} ${statusBadge(c.status)}</div>
+        </div>
+        <p style="color:var(--text-muted);font-size:var(--text-sm);margin-bottom:16px">${c.description || ""}</p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:var(--text-xs);color:var(--text-muted)">
+          <span>Submitted: ${formatDateTime(c.created_at)}</span>
+          <span>Updated: ${formatDateTime(c.updated_at)}</span>
+          ${c.latitude && c.longitude ? `<span>Location: ${Number(c.latitude).toFixed(4)}, ${Number(c.longitude).toFixed(4)}</span>` : ""}
+        </div>`;
+      document.getElementById("new-status").value = c.status;
+
+      if (c.latitude && c.longitude) {
+        document.getElementById("map-card").style.display = "block";
+        const map = L.map("map").setView([c.latitude, c.longitude], 15);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "OpenStreetMap" }).addTo(map);
+        L.marker([c.latitude, c.longitude]).addTo(map);
+      }
+
+      if (c.images && c.images.length) {
+        document.getElementById("images-card").style.display = "block";
+        document.getElementById("images-grid").innerHTML = c.images.map(img => `
+          <div style="position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)">
+            <img src="${img.image_url}" alt="Complaint image" style="width:100%;display:block" />
+            <span style="position:absolute;top:6px;right:6px;background:var(--bg);color:var(--text-muted);font-size:10px;padding:2px 6px;border-radius:var(--radius)">${img.image_type || 'photo'}</span>
+          </div>`).join("");
+      }
+
+      if (c.classifications && c.classifications.length) {
+        document.getElementById("ai-card").style.display = "block";
+        const ai = c.classifications[0];
+        const catLabels = { road_damage:"Road Damage", garbage:"Garbage/Waste", streetlight:"Streetlight", water_supply:"Water Supply", drainage:"Drainage", noise:"Noise", property_damage:"Property Damage", animal_control:"Animal Control", public_safety:"Public Safety", vegetation:"Vegetation", other:"Other" };
+        const confPct = Math.round((ai.confidence || 0) * 100);
+        document.getElementById("ai-info").innerHTML = `
+          <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+            <div style="flex:1;min-width:120px;padding:10px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+              <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:4px">Category</div>
+              <div style="font-weight:600;font-size:var(--text-sm)">${catLabels[ai.detected_category] || ai.detected_category}</div>
+            </div>
+            <div style="flex:1;min-width:120px;padding:10px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+              <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:4px">Priority</div>
+              <div style="font-weight:600;font-size:var(--text-sm)">${priorityBadge(ai.priority_suggestion || c.priority)}</div>
+            </div>
+            <div style="flex:1;min-width:120px;padding:10px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+              <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:4px">Department</div>
+              <div style="font-weight:600;font-size:var(--text-sm)">${ai.department || "General"}</div>
+            </div>
+          </div>
+          <div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:var(--text-xs);color:var(--text-muted);margin-bottom:4px"><span>Confidence</span><span>${confPct}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${confPct}%"></div></div></div>
+          ${ai.summary ? `<p style="font-size:var(--text-sm);color:var(--text-muted);font-style:italic;margin-top:8px">"${ai.summary}"</p>` : ''}`;
+      }
+
+      document.getElementById("timeline").innerHTML = c.timeline && c.timeline.length ? c.timeline.map(t => `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>${statusBadge(t.status)}</strong><div style="margin-top:2px">${t.remarks || ""}</div><div class="timeline-date">${t.changed_by_name || "System"} • ${formatDateTime(t.created_at)}</div></div></div>`).join("") : '<p style="color:var(--text-muted);font-size:var(--text-sm)">No timeline entries yet</p>';
+
+      const assignment = c.assignments && c.assignments[c.assignments.length - 1];
+      document.getElementById("assignment-info").innerHTML = assignment ? `<div style="font-size:var(--text-sm)"><strong>${assignment.worker_name}</strong><br>${statusBadge(assignment.status)}<br><span style="font-size:var(--text-xs);color:var(--text-muted)">Assigned: ${formatDateTime(assignment.assigned_at)}</span></div>` : '<p style="color:var(--text-muted);font-size:var(--text-sm)">Not assigned</p>';
+
+      document.getElementById("citizen-info").innerHTML = `<div style="font-size:var(--text-sm)"><strong>${c.citizen_name || ""}</strong><br><span style="color:var(--text-muted)">${c.citizen_email || ""}</span><br><span style="color:var(--text-muted)">${c.citizen_phone || ""}</span></div>`;
+
+      if (c.feedback) {
+        document.getElementById("feedback-card").style.display = "block";
+        document.getElementById("feedback-info").innerHTML = `<div style="font-size:var(--text-sm)"><div style="margin-bottom:4px">${Array(5).fill(0).map((_, i) => i < c.feedback.rating ? I.star : I.starEmpty).join("")}</div><p style="color:var(--text-muted)">${c.feedback.review || ""}</p></div>`;
+      }
+    } catch (err) { toast(err.message, "error"); }
+  }
+
+  async function updateStatus() {
+    const status = document.getElementById("new-status").value;
+    const remarks = document.getElementById("remarks").value.trim();
+    try {
+      await API.areaAdmin.updateStatus(complaintId, { status, remarks });
+      toast("Status updated", "success");
+      loadComplaint();
+    } catch (err) { toast(err.message, "error"); }
+  }
+
+  if (complaintId) loadComplaint();
+</script>
+</body>
+</html>

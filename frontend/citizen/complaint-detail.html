@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaint Detail — Municipal Services</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+  <div id="topnav"></div>
+  <div style="padding:24px;max-width:800px;margin:0 auto">
+    <div id="content"><div class="page-loader"><span class="spinner"></span></div></div>
+  </div>
+  <div id="toast-container"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/icons.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script src="../assets/js/sidebar-citizen.js"></script>
+  <script>
+    Auth.require("citizen");
+    renderTopnav("my-complaints");
+    Theme.apply();
+    const params = new URLSearchParams(window.location.search);
+    const complaintId = params.get("id");
+    if (!complaintId) { document.getElementById("content").innerHTML = '<div class="empty-state"><p>No complaint ID</p></div>'; }
+
+    async function loadComplaint() {
+      try {
+        const c = await API.citizen.getComplaint(complaintId);
+        let html = `<a href="my-complaints.html" style="font-size:var(--text-sm);color:var(--accent);display:inline-block;margin-bottom:16px">${I.arrowLeft} Back to My Complaints</a>`;
+        html += `<div class="card" style="margin-bottom:20px">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><span style="font-family:monospace;font-size:var(--text-sm);color:var(--text-muted)">${c.complaint_no || ""}</span>${priorityBadge(c.priority)}</div>
+          <h2 style="font-size:var(--text-lg);font-weight:700;margin-bottom:8px">${c.title}</h2>
+          <p style="color:var(--text-muted);font-size:var(--text-sm);margin-bottom:16px">${c.description || ""}</p>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <div><strong style="font-size:var(--text-sm)">Status:</strong> ${statusBadge(c.status)}</div>
+            <span style="font-size:var(--text-xs);color:var(--text-muted)">Submitted ${formatDate(c.created_at)}</span>
+          </div>
+        </div>`;
+        if (c.latitude && c.longitude) {
+          html += `<div class="card" style="margin-bottom:20px"><div class="map-container" id="map"></div></div>`;
+        }
+        if (c.images && c.images.length) {
+          html += `<div class="card" style="margin-bottom:20px"><div class="card-header"><h2 class="card-title">Photos</h2></div><div class="image-grid">${c.images.map(img => `<img src="${img.image_url}" alt="" />`).join("")}</div></div>`;
+        }
+        if (c.ai_classification) {
+          const ai = c.ai_classification;
+          const catLabels = { road_damage:"Road Damage", garbage:"Garbage/Waste", streetlight:"Streetlight", water_supply:"Water Supply", drainage:"Drainage", noise:"Noise", property_damage:"Property Damage", animal_control:"Animal Control", public_safety:"Public Safety", vegetation:"Vegetation", other:"Other" };
+          html += `<div class="card" style="margin-bottom:20px;border-left:3px solid var(--accent)">
+            <div class="card-header"><h2 class="card-title">${I.cpu} AI Analysis</h2></div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:var(--text-sm)">
+              <div><span style="color:var(--text-muted)">Category:</span> <strong>${catLabels[ai.detected_category] || ai.detected_category}</strong></div>
+              <div><span style="color:var(--text-muted)">Confidence:</span> <strong>${Math.round((ai.confidence || 0) * 100)}%</strong></div>
+              <div><span style="color:var(--text-muted)">Department:</span> <strong>${ai.department || "General"}</strong></div>
+            </div>
+            <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${Math.round((ai.confidence || 0) * 100)}%"></div></div>
+          </div>`;
+        }
+        html += `<div class="card" style="margin-bottom:20px"><div class="card-header"><h2 class="card-title">Timeline</h2></div><div class="timeline">${c.timeline && c.timeline.length ? c.timeline.map(t => `<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><strong>${statusBadge(t.status)}</strong><div class="timeline-date">${formatDateTime(t.created_at)}</div></div></div>`).join("") : '<p style="color:var(--text-muted);font-size:var(--text-sm)">No updates yet</p>'}</div></div>`;
+        const canFeedback = ["completed","verified","closed"].includes(c.status) && !c.feedback;
+        if (canFeedback) {
+          html += `<div class="card" id="feedback-card"><div class="card-header"><h2 class="card-title">How was the resolution?</h2></div>
+            <div class="star-rating" id="star-rating" style="margin-bottom:12px">${[1,2,3,4,5].map(n => `<span class="star" data-val="${n}" onclick="setRating(${n})">${I.star}</span>`).join("")}</div>
+            <div class="form-group"><label class="form-label">Review (optional)</label><textarea id="review" class="form-input" rows="3" placeholder="Share your experience..."></textarea></div>
+            <button class="btn btn-primary" id="feedback-btn" onclick="submitFeedback()" style="width:100%;justify-content:center">Submit Feedback</button>
+          </div>`;
+        }
+        if (c.feedback) {
+          html += `<div class="card"><div class="card-header"><h2 class="card-title">Your Feedback</h2></div><div style="font-size:var(--text-sm)">${I.star.repeat(c.feedback.rating)}${I.starEmpty.repeat(5-c.feedback.rating)} <span style="color:var(--text-muted)">(${c.feedback.rating}/5)</span></div><p style="color:var(--text-muted);margin-top:8px">${c.feedback.review || ""}</p></div>`;
+        }
+        document.getElementById("content").innerHTML = html;
+        if (c.latitude && c.longitude) {
+          setTimeout(() => {
+            const map = L.map("map").setView([c.latitude, c.longitude], 15);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "OpenStreetMap" }).addTo(map);
+            L.marker([c.latitude, c.longitude]).addTo(map);
+          }, 100);
+        }
+      } catch (err) { toast(err.message, "error"); }
+    }
+
+    let selectedRating = 0;
+    function setRating(n) {
+      selectedRating = n;
+      document.querySelectorAll("#star-rating .star").forEach((s, i) => {
+        s.classList.toggle("filled", i < n);
+      });
+    }
+
+    async function submitFeedback() {
+      if (!selectedRating) return toast("Please select a rating", "error");
+      const btn = document.getElementById("feedback-btn");
+      setLoading(btn, true);
+      try {
+        await API.citizen.submitFeedback(complaintId, { rating: selectedRating, review: document.getElementById("review").value.trim() });
+        toast("Thank you for your feedback!", "success");
+        loadComplaint();
+      } catch (err) { toast(err.message, "error"); }
+      finally { setLoading(btn, false); }
+    }
+
+    if (complaintId) loadComplaint();
+  </script>
+</body>
+</html>

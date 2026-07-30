@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — Municipal System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></svg></div>
+        <h1>Create Account</h1>
+        <p>Register as a citizen</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input id="full-name" type="text" class="form-input" placeholder="John Doe" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email *</label>
+        <input id="email" type="email" class="form-input" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input id="phone" type="text" class="form-input" placeholder="9876543210" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <input id="password" type="password" class="form-input" placeholder="Min 8 characters" oninput="checkStrength()" />
+        <div class="strength-bar" id="strength-bar"><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div></div>
+        <ul class="req-list" id="req-list">
+          <li id="req-len">8+ characters</li>
+          <li id="req-upper">One uppercase letter</li>
+          <li id="req-num">One number</li>
+          <li id="req-special">One special character</li>
+        </ul>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password *</label>
+        <input id="confirm-password" type="password" class="form-input" placeholder="Repeat password" />
+      </div>
+      <button id="register-btn" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px">
+        Register
+      </button>
+      <div class="auth-footer">
+        Already have an account? <a href="login.html">Sign in</a>
+      </div>
+    </div>
+  </div>
+  <div id="toast-container"></div>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/icons.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script>
+    function checkStrength() {
+      const p = document.getElementById("password").value;
+      const bar = document.getElementById("strength-bar");
+      let score = 0;
+      if (p.length >= 8) { score++; document.getElementById("req-len").classList.add("met"); } else { document.getElementById("req-len").classList.remove("met"); }
+      if (/[A-Z]/.test(p)) { score++; document.getElementById("req-upper").classList.add("met"); } else { document.getElementById("req-upper").classList.remove("met"); }
+      if (/[0-9]/.test(p)) { score++; document.getElementById("req-num").classList.add("met"); } else { document.getElementById("req-num").classList.remove("met"); }
+      if (/[^A-Za-z0-9]/.test(p)) { score++; document.getElementById("req-special").classList.add("met"); } else { document.getElementById("req-special").classList.remove("met"); }
+      bar.className = "strength-bar " + ["", "weak", "fair", "strong", "very-strong"][score];
+    }
+
+    document.getElementById("register-btn").addEventListener("click", async () => {
+      const btn = document.getElementById("register-btn");
+      const body = {
+        full_name: document.getElementById("full-name").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        phone: document.getElementById("phone").value.trim() || null,
+        password: document.getElementById("password").value,
+        confirm_password: document.getElementById("confirm-password").value,
+      };
+      if (!body.full_name || !body.email || !body.password) return toast("Name, email and password are required", "error");
+      if (body.password !== body.confirm_password) return toast("Passwords do not match", "error");
+      if (body.password.length < 8) return toast("Password must be at least 8 characters", "error");
+      setLoading(btn, true);
+      try {
+        await API.auth.register(body);
+        sessionStorage.setItem("otp_email", body.email);
+        toast("OTP sent to your email!", "success");
+        setTimeout(() => window.location.href = "verify-otp.html", 1000);
+      } catch (err) { toast(err.message, "error"); }
+      finally { setLoading(btn, false); }
+    });
+  </script>
+</body>
+</html>

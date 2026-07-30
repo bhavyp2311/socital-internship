@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaints — Area Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Complaints</span>
+      <div class="topbar-right"><button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button></div>
+    </header>
+    <div class="page-content">
+      <div class="card">
+        <div class="toolbar">
+          <select id="status-filter" class="form-input form-select" onchange="loadComplaints()" style="width:150px">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select id="priority-filter" class="form-input form-select" onchange="loadComplaints()" style="width:150px">
+            <option value="">All Priority</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+          <div class="search-input-wrap">
+            <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+            <input type="text" id="search" class="form-input" placeholder="Search..." oninput="loadComplaints()" style="padding-left:32px;width:200px" />
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>No.</th><th>Title</th><th>Citizen</th><th>Status</th><th>Priority</th><th>Worker</th><th>Date</th><th>Actions</th></tr></thead>
+            <tbody id="complaints-tbody"><tr><td colspan="8"><div class="page-loader"><span class="spinner"></span></div></td></tr></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Assign Modal -->
+<div class="modal-overlay" id="assign-modal">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header"><h2 class="modal-title">Assign Worker</h2><button class="modal-close" onclick="closeModal('assign-modal')">&times;</button></div>
+    <div id="worker-list"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('assign-modal')">Cancel</button>
+      <button class="btn btn-primary" id="assign-btn" onclick="confirmAssign()">Assign</button>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-area.js"></script>
+<script>
+  Auth.require("area_admin", "admin", "super_admin");
+  renderSidebar("complaints");
+  initSidebar();
+  Theme.apply();
+  let currentPage = 1, selectedWorker = null, assigningId = null;
+  async function loadComplaints() {
+    const params = {
+      status: document.getElementById("status-filter").value,
+      priority: document.getElementById("priority-filter").value,
+      search: document.getElementById("search").value,
+      page: currentPage, limit: 20,
+    };
+    try {
+      const d = await API.areaAdmin.getComplaints(params);
+      const tbody = document.getElementById("complaints-tbody");
+      if (!d.complaints.length) { tbody.innerHTML = emptyRow(8, "No complaints found."); return; }
+      tbody.innerHTML = d.complaints.map(c => `<tr>
+        <td><span style="font-family:monospace;font-weight:600">${c.complaint_no || "—"}</span></td>
+        <td><a href="complaint-detail.html?id=${c.id}" style="color:var(--accent);font-weight:500">${c.title}</a></td>
+        <td style="color:var(--text-muted)">${c.citizen_name || "—"}</td>
+        <td>${statusBadge(c.status)}</td>
+        <td>${priorityBadge(c.priority)}</td>
+        <td style="color:var(--text-muted)">${c.worker_name || "—"}</td>
+        <td style="color:var(--text-muted)">${formatDate(c.created_at)}</td>
+        <td>
+          ${(!c.worker_name && c.status === 'pending') ? `<button class="btn btn-sm btn-primary" onclick="openAssign('${c.id}')">Assign</button>` : ""}
+          <a href="complaint-detail.html?id=${c.id}" class="btn btn-sm btn-ghost">View</a>
+        </td>
+      </tr>`).join("");
+      renderPagination(d.total, d.page, d.limit);
+    } catch (err) { toast(err.message, "error"); }
+  }
+  function renderPagination(total, page, limit) {
+    const pages = Math.ceil(total / limit);
+    const el = document.getElementById("pagination");
+    if (pages <= 1) { el.innerHTML = ""; return; }
+    el.innerHTML = `<button ${page<=1?'disabled':''} onclick="goPage(${page-1})">Prev</button>
+      <span style="font-size:var(--text-sm);color:var(--text-muted)">Page ${page} of ${pages}</span>
+      <button ${page>=pages?'disabled':''} onclick="goPage(${page+1})">Next</button>`;
+  }
+  function goPage(p) { currentPage = p; loadComplaints(); }
+  async function openAssign(id) {
+    assigningId = id; selectedWorker = null;
+    try {
+      const workers = await API.areaAdmin.getWorkers();
+      const el = document.getElementById("worker-list");
+      if (!workers.length) { el.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px">No workers available</p>'; openModal("assign-modal"); return; }
+      el.innerHTML = workers.map(w => `<div class="complaint-card" style="margin-bottom:8px;cursor:pointer" onclick="selectWorker('${w.id}', this)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>${w.full_name}</strong><br><span style="font-size:var(--text-xs);color:var(--text-muted)">${w.department_name || ""}</span></div>
+          <div style="text-align:right">${availabilityBadge(w.availability)}<br><span style="font-size:var(--text-xs)">Rating: ${w.rating || 0}/5</span></div>
+        </div>
+      </div>`).join("");
+      openModal("assign-modal");
+    } catch (err) { toast(err.message, "error"); }
+  }
+  function selectWorker(id, el) {
+    selectedWorker = id;
+    document.querySelectorAll("#worker-list .complaint-card").forEach(c => c.style.borderColor = "var(--border)");
+    el.style.borderColor = "var(--accent)";
+  }
+  async function confirmAssign() {
+    if (!selectedWorker) return toast("Select a worker", "error");
+    const btn = document.getElementById("assign-btn");
+    setLoading(btn, true);
+    try {
+      await API.areaAdmin.assignComplaint(assigningId, { worker_id: selectedWorker });
+      toast("Complaint assigned!", "success");
+      closeModal("assign-modal"); loadComplaints();
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(btn, false); }
+  }
+  loadComplaints();
+</script>
+</body>
+</html>

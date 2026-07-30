@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <div class="main">
+      <header class="topbar">
+        <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+        <span class="topbar-title">Dashboard</span>
+        <div class="topbar-right">
+          <span id="topbar-date" style="font-size:0.8rem;color:var(--text-muted)"></span>
+          <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()" title="Toggle theme"></button>
+        </div>
+      </header>
+      <div class="page-content">
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card stat-accent">
+            <div class="stat-label">Total Complaints</div>
+            <div class="stat-value" id="stat-total">&mdash;</div>
+            <div class="stat-sub">All time</div>
+          </div>
+          <div class="stat-card stat-warning">
+            <div class="stat-label">Pending</div>
+            <div class="stat-value" id="stat-pending">&mdash;</div>
+            <div class="stat-sub">Awaiting action</div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--info)">
+            <div class="stat-label">In Progress</div>
+            <div class="stat-value" id="stat-inprogress">&mdash;</div>
+            <div class="stat-sub">Being worked on</div>
+          </div>
+          <div class="stat-card stat-success">
+            <div class="stat-label">Completed</div>
+            <div class="stat-value" id="stat-completed">&mdash;</div>
+            <div class="stat-sub">Resolved</div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--text-muted)">
+            <div class="stat-label">Total Workers</div>
+            <div class="stat-value" id="stat-workers">&mdash;</div>
+            <div class="stat-sub" id="stat-workers-avail">&mdash; available</div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--text-muted)">
+            <div class="stat-label">Total Wards</div>
+            <div class="stat-value" id="stat-wards">&mdash;</div>
+            <div class="stat-sub">In municipality</div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--text-muted)">
+            <div class="stat-label">Area Admins</div>
+            <div class="stat-value" id="stat-areaadmins">&mdash;</div>
+            <div class="stat-sub">Managing wards</div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--text-muted)">
+            <div class="stat-label">Citizens</div>
+            <div class="stat-value" id="stat-citizens">&mdash;</div>
+            <div class="stat-sub">Registered</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px" id="quick-links"></div>
+      </div>
+    </div>
+  </div>
+  <div id="toast-container"></div>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/icons.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script src="../assets/js/sidebar-admin.js"></script>
+  <script>
+    Auth.require("super_admin", "admin");
+    renderSidebar("dashboard");
+    initSidebar();
+    Theme.apply();
+    document.getElementById("quick-links").innerHTML = [
+      { href: "wards.html", icon: I.mapPin, title: "Manage Wards", desc: "Add or edit ward areas" },
+      { href: "departments.html", icon: I.building2, title: "Departments", desc: "Manage city departments" },
+      { href: "users.html", icon: I.users, title: "Users", desc: "View all staff" },
+      { href: "invite.html", icon: I.mail, title: "Invite User", desc: "Add new staff member" },
+    ].map(l => `<a href="${l.href}" class="card" style="display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><div style="color:var(--accent)">${l.icon}</div><div><div style="font-weight:600">${l.title}</div><div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:2px">${l.desc}</div></div></a>`).join("");
+    document.getElementById("topbar-date").textContent =
+      new Date().toLocaleDateString("en-IN", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+    async function loadDashboard() {
+      try {
+        const d = await API.admin.dashboard();
+        document.getElementById("stat-total").textContent = d.complaints.total;
+        document.getElementById("stat-pending").textContent = d.complaints.pending;
+        document.getElementById("stat-inprogress").textContent = d.complaints.in_progress;
+        document.getElementById("stat-completed").textContent = d.complaints.completed;
+        document.getElementById("stat-workers").textContent = d.workers.total;
+        document.getElementById("stat-workers-avail").textContent = `${d.workers.available} available`;
+        document.getElementById("stat-wards").textContent = d.wards.total;
+        document.getElementById("stat-areaadmins").textContent = d.users.area_admins;
+        document.getElementById("stat-citizens").textContent = d.users.citizens;
+      } catch (err) { toast(err.message, "error"); }
+    }
+    loadDashboard();
+  </script>
+</body>
+</html>

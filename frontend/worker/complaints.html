@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Complaints — Worker</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">My Complaints</span>
+      <div class="topbar-right"><button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button></div>
+    </header>
+    <div class="page-content">
+      <div class="card">
+        <div class="toolbar">
+          <select id="status-filter" class="form-input form-select" onchange="loadComplaints()" style="width:160px">
+            <option value="">All Status</option>
+            <option value="assigned">Assigned</option>
+            <option value="accepted">Accepted</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>No.</th><th>Title</th><th>Priority</th><th>Status</th><th>Citizen</th><th>Assigned</th><th>Action</th></tr></thead>
+            <tbody id="complaints-tbody"><tr><td colspan="7"><div class="page-loader"><span class="spinner"></span></div></td></tr></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-worker.js"></script>
+<script>
+  Auth.require("worker");
+  renderSidebar("complaints");
+  initSidebar();
+  Theme.apply();
+  let currentPage = 1;
+  async function loadComplaints() {
+    const params = { status: document.getElementById("status-filter").value, page: currentPage, limit: 20 };
+    try {
+      const d = await API.worker.getComplaints(params);
+      const tbody = document.getElementById("complaints-tbody");
+      if (!d.complaints.length) { tbody.innerHTML = emptyRow(7, "No complaints assigned."); return; }
+      tbody.innerHTML = d.complaints.map(c => {
+        let actionBtn = "";
+        if (c.assignment_status === "assigned") actionBtn = `<button class="btn btn-sm btn-success" onclick="doAction('${c.id}','accept')">Accept</button>`;
+        else if (c.assignment_status === "accepted") actionBtn = `<button class="btn btn-sm btn-primary" onclick="doAction('${c.id}','start')">Start Work</button>`;
+        else if (c.assignment_status === "in_progress") actionBtn = `<a href="complaint-detail.html?id=${c.id}" class="btn btn-sm btn-primary">View & Complete</a>`;
+        else actionBtn = `<a href="complaint-detail.html?id=${c.id}" class="btn btn-sm btn-ghost">View</a>`;
+        return `<tr>
+          <td><span style="font-family:monospace;font-weight:600">${c.complaint_no || "—"}</span></td>
+          <td><a href="complaint-detail.html?id=${c.id}" style="color:var(--accent);font-weight:500">${c.title}</a></td>
+          <td>${priorityBadge(c.priority)}</td>
+          <td>${statusBadge(c.assignment_status || c.status)}</td>
+          <td style="color:var(--text-muted)">${c.citizen_name || "—"}</td>
+          <td style="color:var(--text-muted)">${formatDate(c.assigned_at)}</td>
+          <td>${actionBtn}</td>
+        </tr>`;
+      }).join("");
+      renderPagination(d.total, d.page, d.limit);
+    } catch (err) { toast(err.message, "error"); }
+  }
+  function renderPagination(total, page, limit) {
+    const pages = Math.ceil(total / limit);
+    const el = document.getElementById("pagination");
+    if (pages <= 1) { el.innerHTML = ""; return; }
+    el.innerHTML = `<button ${page<=1?'disabled':''} onclick="goPage(${page-1})">Prev</button>
+      <span style="font-size:var(--text-sm);color:var(--text-muted)">Page ${page} of ${pages}</span>
+      <button ${page>=pages?'disabled':''} onclick="goPage(${page+1})">Next</button>`;
+  }
+  function goPage(p) { currentPage = p; loadComplaints(); }
+  async function doAction(id, action) {
+    try {
+      if (action === "accept") await API.worker.accept(id);
+      else if (action === "start") await API.worker.start(id);
+      toast("Action completed", "success"); loadComplaints();
+    } catch (err) { toast(err.message, "error"); }
+  }
+  loadComplaints();
+</script>
+</body>
+</html>

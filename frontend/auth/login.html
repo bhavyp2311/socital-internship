@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Municipal System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></svg></div>
+        <h1>Municipal System</h1>
+        <p>Sign in to your account</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input id="email" type="email" class="form-input" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input id="password" type="password" class="form-input" placeholder="••••••••" />
+      </div>
+      <button id="login-btn" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px">
+        Sign In
+      </button>
+      <div class="auth-footer">
+        <a href="set-password.html">Forgot password?</a>
+      </div>
+      <div class="auth-footer">
+        New citizen? <a href="register.html">Create account</a>
+      </div>
+    </div>
+  </div>
+  <div id="toast-container"></div>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/icons.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script>
+    if (Auth.isLoggedIn()) Auth.redirectToDashboard();
+    document.getElementById("login-btn").addEventListener("click", async () => {
+      const btn = document.getElementById("login-btn");
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      if (!email || !password) return toast("Email and password are required", "error");
+      setLoading(btn, true);
+      try {
+        const data = await API.auth.login({ email, password });
+        Auth.save(data, data.profile);
+        toast("Login successful!", "success");
+        setTimeout(() => Auth.redirectToDashboard(), 800);
+      } catch (err) {
+        toast(err.message, "error");
+      } finally { setLoading(btn, false); }
+    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("login-btn").click(); });
+  </script>
+</body>
+</html>

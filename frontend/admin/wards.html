@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wards — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Wards</span>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openModal('ward-modal')">+ Add Ward</button>
+        <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button>
+      </div>
+    </header>
+    <div class="page-content">
+      <div class="card">
+        <div class="toolbar">
+          <div class="search-input-wrap">
+            <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+            <input type="text" class="form-input" id="search" placeholder="Search wards..." oninput="filterTable()" style="padding-left:32px;width:240px" />
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ward No.</th><th>Ward Name</th><th>Zone</th><th>Admins</th><th>Workers</th><th>Actions</th></tr></thead>
+            <tbody id="wards-tbody"><tr><td colspan="6"><div class="page-loader"><span class="spinner"></span> Loading...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="ward-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 class="modal-title" id="modal-title">Add Ward</h2><button class="modal-close" onclick="closeModal('ward-modal')">&times;</button></div>
+    <input type="hidden" id="edit-id" />
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Ward Number</label><input type="number" id="ward-no" class="form-input" placeholder="1" /></div>
+      <div class="form-group"><label class="form-label">Ward Name *</label><input type="text" id="ward-name" class="form-input" placeholder="Ward 1 - North" /></div>
+    </div>
+    <div class="form-group"><label class="form-label">Zone</label><select id="zone-id" class="form-input form-select"><option value="">No zone</option></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('ward-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveWard()">Save Ward</button>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-admin.js"></script>
+<script>
+  Auth.require("super_admin", "admin");
+  renderSidebar("wards");
+  initSidebar();
+  Theme.apply();
+  let allWards = [];
+  async function loadWards() {
+    try { allWards = await API.admin.getWards(); renderTable(allWards); }
+    catch (err) { toast(err.message, "error"); }
+  }
+  async function loadZones() {
+    try {
+      const zones = await API.admin.getZones();
+      const sel = document.getElementById("zone-id");
+      zones.forEach(z => { sel.innerHTML += `<option value="${z.id}">${z.zone_name}</option>`; });
+    } catch {}
+  }
+  function renderTable(data) {
+    const tbody = document.getElementById("wards-tbody");
+    if (!data.length) { tbody.innerHTML = emptyRow(6, "No wards yet. Add your first ward."); return; }
+    tbody.innerHTML = data.map(w => `<tr>
+      <td><span style="font-weight:600">#${w.ward_no || "—"}</span></td>
+      <td>${w.ward_name}</td>
+      <td>${w.zone_name || '<span style="color:var(--text-muted)">No zone</span>'}</td>
+      <td><span class="badge badge-info">${w.admin_count || 0}</span></td>
+      <td><span class="badge badge-muted">${w.worker_count || 0}</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn-icon" onclick='editWard(${JSON.stringify(w)})'>${I.edit}</button>
+        <button class="btn-icon" onclick="deleteWard('${w.id}')">${I.trash}</button>
+      </td>
+    </tr>`).join("");
+  }
+  function filterTable() {
+    const q = document.getElementById("search").value.toLowerCase();
+    renderTable(allWards.filter(w => w.ward_name.toLowerCase().includes(q) || String(w.ward_no).includes(q)));
+  }
+  function editWard(w) {
+    document.getElementById("modal-title").textContent = "Edit Ward";
+    document.getElementById("edit-id").value = w.id;
+    document.getElementById("ward-no").value = w.ward_no || "";
+    document.getElementById("ward-name").value = w.ward_name;
+    document.getElementById("zone-id").value = w.zone_id || "";
+    openModal("ward-modal");
+  }
+  function resetForm() {
+    document.getElementById("modal-title").textContent = "Add Ward";
+    document.getElementById("edit-id").value = "";
+    document.getElementById("ward-no").value = "";
+    document.getElementById("ward-name").value = "";
+    document.getElementById("zone-id").value = "";
+  }
+  async function saveWard() {
+    const btn = document.getElementById("save-btn");
+    const id = document.getElementById("edit-id").value;
+    const body = { ward_no: parseInt(document.getElementById("ward-no").value) || null, ward_name: document.getElementById("ward-name").value.trim(), zone_id: document.getElementById("zone-id").value || null };
+    if (!body.ward_name) return toast("Ward name is required", "error");
+    setLoading(btn, true);
+    try {
+      if (id) { await API.admin.updateWard(id, body); toast("Ward updated", "success"); }
+      else { await API.admin.createWard(body); toast("Ward created", "success"); }
+      closeModal("ward-modal"); resetForm(); loadWards();
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(btn, false); }
+  }
+  async function deleteWard(id) {
+    if (!confirmDelete("Delete this ward?")) return;
+    try { await API.admin.deleteWard(id); toast("Ward deleted", "success"); loadWards(); }
+    catch (err) { toast(err.message, "error"); }
+  }
+  loadWards(); loadZones();
+</script>
+</body>
+</html>

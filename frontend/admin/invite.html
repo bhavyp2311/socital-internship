@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Invite User — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Invite User</span>
+      <div class="topbar-right"><button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button></div>
+    </header>
+    <div class="page-content" style="max-width:520px">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Send Invite</h2></div>
+        <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:20px">
+          The invited user will receive an email with a link to set their password.
+        </p>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Full Name *</label><input type="text" id="full-name" class="form-input" placeholder="John Doe" /></div>
+          <div class="form-group"><label class="form-label">Phone</label><input type="text" id="phone" class="form-input" placeholder="9876543210" /></div>
+        </div>
+        <div class="form-group"><label class="form-label">Email *</label><input type="email" id="email" class="form-input" placeholder="user@example.com" /></div>
+        <div class="form-group">
+          <label class="form-label">Role *</label>
+          <select id="role" class="form-input form-select" onchange="onRoleChange()">
+            <option value="">Select role...</option>
+            <option value="admin">Admin</option>
+            <option value="area_admin">Area Admin</option>
+            <option value="worker">Worker</option>
+          </select>
+        </div>
+        <div id="ward-group" class="form-group" style="display:none">
+          <label class="form-label">Ward</label>
+          <select id="ward-id" class="form-input form-select"><option value="">No ward assigned</option></select>
+        </div>
+        <div id="dept-group" class="form-group" style="display:none">
+          <label class="form-label">Department</label>
+          <select id="dept-id" class="form-input form-select"><option value="">No department assigned</option></select>
+        </div>
+        <button class="btn btn-primary" id="invite-btn" onclick="sendInvite()" style="width:100%;justify-content:center;margin-top:4px">Send Invite</button>
+      </div>
+      <div class="card" style="margin-top:20px">
+        <div class="card-header"><h2 class="card-title">Recent Invites</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+            <tbody id="invites-tbody"><tr><td colspan="4"><div class="page-loader"><span class="spinner"></span></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-admin.js"></script>
+<script>
+  Auth.require("super_admin", "admin", "area_admin");
+  renderSidebar("invite");
+  initSidebar();
+  Theme.apply();
+  async function loadWards() {
+    try {
+      const wards = await API.admin.getWards();
+      const sel = document.getElementById("ward-id");
+      wards.forEach(w => sel.innerHTML += `<option value="${w.id}">Ward ${w.ward_no} — ${w.ward_name}</option>`);
+    } catch {}
+  }
+  async function loadDepts() {
+    try {
+      const depts = await API.admin.getDepartments();
+      const sel = document.getElementById("dept-id");
+      depts.forEach(d => sel.innerHTML += `<option value="${d.id}">${d.name}</option>`);
+    } catch {}
+  }
+  function onRoleChange() {
+    const role = document.getElementById("role").value;
+    document.getElementById("ward-group").style.display = (role === "area_admin" || role === "worker") ? "flex" : "none";
+    document.getElementById("dept-group").style.display = (role === "worker") ? "flex" : "none";
+  }
+  async function sendInvite() {
+    const btn = document.getElementById("invite-btn");
+    const body = {
+      full_name: document.getElementById("full-name").value.trim(),
+      email: document.getElementById("email").value.trim(),
+      phone: document.getElementById("phone").value.trim() || null,
+      role: document.getElementById("role").value,
+      ward_id: document.getElementById("ward-id").value || null,
+      department_id: document.getElementById("dept-id").value || null,
+    };
+    if (!body.full_name || !body.email || !body.role) return toast("Name, email and role are required", "error");
+    setLoading(btn, true);
+    try {
+      const data = await API.admin.invite(body);
+      toast(`Invite sent to ${data.email}`, "success");
+      loadInvites();
+      ["full-name","email","phone"].forEach(id => document.getElementById(id).value = "");
+      document.getElementById("role").value = "";
+      onRoleChange();
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(btn, false); }
+  }
+  async function loadInvites() {
+    try {
+      const data = await API.admin.getInvited();
+      const tbody = document.getElementById("invites-tbody");
+      if (!data.length) { tbody.innerHTML = emptyRow(4, "No invites sent yet."); return; }
+      const roleColors = { admin:"badge-warning", area_admin:"badge-info", worker:"badge-muted" };
+      tbody.innerHTML = data.map(u => `<tr>
+        <td style="font-weight:500">${u.full_name}</td>
+        <td style="color:var(--text-muted)">${u.email}</td>
+        <td><span class="badge ${roleColors[u.role]||'badge-muted'}">${u.role.replace("_"," ")}</span></td>
+        <td>${u.is_verified ? '<span class="badge badge-success">Accepted</span>' : '<span class="badge badge-warning">Pending</span>'}</td>
+      </tr>`).join("");
+    } catch {}
+  }
+  loadWards(); loadDepts(); loadInvites();
+</script>
+</body>
+</html>

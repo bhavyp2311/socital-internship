@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Complaints — Municipal Services</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <div id="topnav"></div>
+  <div style="padding:24px;max-width:900px;margin:0 auto">
+    <h1 style="font-family:var(--font-display);font-size:var(--text-xl);margin-bottom:16px">My Complaints</h1>
+    <div class="filter-tabs" id="filter-tabs">
+      <button class="filter-tab active" data-status="">All</button>
+      <button class="filter-tab" data-status="pending">Pending</button>
+      <button class="filter-tab" data-status="in_progress">In Progress</button>
+      <button class="filter-tab" data-status="completed">Completed</button>
+      <button class="filter-tab" data-status="rejected">Rejected</button>
+    </div>
+    <div id="complaints-list"></div>
+  </div>
+  <div id="toast-container"></div>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/icons.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script src="../assets/js/sidebar-citizen.js"></script>
+  <script>
+    Auth.require("citizen");
+    renderTopnav("my-complaints");
+    Theme.apply();
+    let currentStatus = "";
+    document.querySelectorAll(".filter-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        currentStatus = tab.dataset.status;
+        loadComplaints();
+      });
+    });
+    async function loadComplaints() {
+      try {
+        const d = await API.citizen.getComplaints({ status: currentStatus || undefined });
+        const el = document.getElementById("complaints-list");
+        if (!d.complaints.length) {
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">${I.clipboard}</div><p>No complaints found.</p><div class="empty-cta"><a href="submit-complaint.html" class="btn btn-primary">Submit a Complaint</a></div></div>`;
+          return;
+        }
+        el.innerHTML = d.complaints.map(c => `<div class="complaint-card" style="margin-bottom:12px" onclick="location.href='complaint-detail.html?id=${c.id}'">
+          <div class="cc-header"><span class="cc-no">${c.complaint_no || ""}</span><div>${statusBadge(c.status)}</div></div>
+          <div class="cc-title">${c.title}</div>
+          <div class="cc-desc">${c.description || ""}</div>
+          <div class="cc-footer">${priorityBadge(c.priority)}${c.worker_name ? `<span class="badge badge-muted">Worker: ${c.worker_name}</span>` : ""}<span class="cc-date">${formatDate(c.created_at)}</span></div>
+        </div>`).join("");
+      } catch (err) { toast(err.message, "error"); }
+    }
+    loadComplaints();
+  </script>
+</body>
+</html>

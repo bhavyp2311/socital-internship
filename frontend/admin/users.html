@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Users — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Users</span>
+      <div class="topbar-right">
+        <a href="invite.html" class="btn btn-primary">+ Invite User</a>
+        <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button>
+      </div>
+    </header>
+    <div class="page-content">
+      <div class="card">
+        <div class="toolbar">
+          <div class="search-input-wrap">
+            <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+            <input type="text" id="search" class="form-input" placeholder="Search by name or email..." oninput="filterTable()" style="padding-left:32px;width:260px" />
+          </div>
+          <select id="role-filter" class="form-input form-select" onchange="loadUsers()" style="width:160px">
+            <option value="">All Roles</option>
+            <option value="admin">Admin</option>
+            <option value="area_admin">Area Admin</option>
+            <option value="worker">Worker</option>
+            <option value="citizen">Citizen</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Ward / Dept</th><th>Verified</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="7"><div class="page-loader"><span class="spinner"></span> Loading...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-admin.js"></script>
+<script>
+  Auth.require("super_admin", "admin");
+  renderSidebar("users");
+  initSidebar();
+  Theme.apply();
+  let allUsers = [];
+  const roleColors = { super_admin:"badge-danger", admin:"badge-warning", area_admin:"badge-info", worker:"badge-muted", citizen:"badge-success" };
+  async function loadUsers() {
+    const role = document.getElementById("role-filter").value;
+    try { allUsers = await API.admin.getUsers(role || null); renderTable(allUsers); }
+    catch (err) { toast(err.message, "error"); }
+  }
+  function renderTable(data) {
+    const tbody = document.getElementById("users-tbody");
+    if (!data.length) { tbody.innerHTML = emptyRow(7, "No users found."); return; }
+    tbody.innerHTML = data.map(u => `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:28px;height:28px;font-size:0.75rem">${u.full_name.charAt(0)}</div><span style="font-weight:500">${u.full_name}</span></div></td>
+      <td style="color:var(--text-muted)">${u.email}</td>
+      <td><span class="badge ${roleColors[u.role]||'badge-muted'}">${u.role.replace("_"," ")}</span></td>
+      <td style="color:var(--text-muted);font-size:var(--text-xs)">${u.ward_name || u.department_name || "—"}</td>
+      <td>${u.is_verified ? '<span class="badge badge-success">✓ Verified</span>' : '<span class="badge badge-warning">Pending</span>'}</td>
+      <td>${u.is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>'}</td>
+      <td>${u.is_active
+        ? `<button class="btn btn-ghost btn-sm" onclick="toggleUser('${u.id}', false)">Deactivate</button>`
+        : `<button class="btn btn-primary btn-sm" onclick="toggleUser('${u.id}', true)">Activate</button>`}</td>
+    </tr>`).join("");
+  }
+  function filterTable() {
+    const q = document.getElementById("search").value.toLowerCase();
+    renderTable(allUsers.filter(u => u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
+  }
+  async function toggleUser(id, activate) {
+    try {
+      if (activate) await API.admin.activateUser(id); else await API.admin.deactivateUser(id);
+      toast(activate ? "User activated" : "User deactivated", "success"); loadUsers();
+    } catch (err) { toast(err.message, "error"); }
+  }
+  loadUsers();
+</script>
+</body>
+</html>

@@ -1,2 +1,4 @@
-frontend
-backend
+reports
+backend/.env
+backend/table.sql
+backend/node_modules

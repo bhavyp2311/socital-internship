@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zones — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Zones</span>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openModal('zone-modal')">+ Add Zone</button>
+        <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button>
+      </div>
+    </header>
+    <div class="page-content">
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Zone Name</th><th>Wards</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody id="zone-tbody"><tr><td colspan="4"><div class="page-loader"><span class="spinner"></span> Loading...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="zone-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 class="modal-title" id="modal-title">Add Zone</h2><button class="modal-close" onclick="closeModal('zone-modal')">&times;</button></div>
+    <input type="hidden" id="edit-id" />
+    <div class="form-group"><label class="form-label">Zone Name *</label><input type="text" id="zone-name" class="form-input" placeholder="Zone A" /></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('zone-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveZone()">Save</button>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-admin.js"></script>
+<script>
+  Auth.require("super_admin", "admin");
+  renderSidebar("zones");
+  initSidebar();
+  Theme.apply();
+  async function loadZones() {
+    try {
+      const data = await API.admin.getZones();
+      const tbody = document.getElementById("zone-tbody");
+      if (!data.length) { tbody.innerHTML = emptyRow(4, "No zones yet."); return; }
+      tbody.innerHTML = data.map(z => `<tr>
+        <td><span style="font-weight:600">${z.zone_name}</span></td>
+        <td><span class="badge badge-muted">${z.ward_count || 0} wards</span></td>
+        <td style="color:var(--text-muted)">${formatDate(z.created_at)}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick='editZone(${JSON.stringify(z)})'>${I.edit}</button>
+          <button class="btn-icon" onclick="deleteZone('${z.id}')">${I.trash}</button>
+        </td>
+      </tr>`).join("");
+    } catch (err) { toast(err.message, "error"); }
+  }
+  function editZone(z) {
+    document.getElementById("modal-title").textContent = "Edit Zone";
+    document.getElementById("edit-id").value = z.id;
+    document.getElementById("zone-name").value = z.zone_name;
+    openModal("zone-modal");
+  }
+  function resetForm() {
+    document.getElementById("modal-title").textContent = "Add Zone";
+    document.getElementById("edit-id").value = "";
+    document.getElementById("zone-name").value = "";
+  }
+  async function saveZone() {
+    const btn = document.getElementById("save-btn");
+    const id = document.getElementById("edit-id").value;
+    const body = { zone_name: document.getElementById("zone-name").value.trim() };
+    if (!body.zone_name) return toast("Zone name is required", "error");
+    setLoading(btn, true);
+    try {
+      if (id) { await API.admin.updateZone(id, body); toast("Updated", "success"); }
+      else { await API.admin.createZone(body); toast("Created", "success"); }
+      closeModal("zone-modal"); resetForm(); loadZones();
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(btn, false); }
+  }
+  async function deleteZone(id) {
+    if (!confirmDelete("Delete this zone?")) return;
+    try { await API.admin.deleteZone(id); toast("Deleted", "success"); loadZones(); }
+    catch (err) { toast(err.message, "error"); }
+  }
+  loadZones();
+</script>
+</body>
+</html>

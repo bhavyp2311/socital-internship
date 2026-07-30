@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workers — Area Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Workers</span>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="document.getElementById('add-worker-modal').style.display='flex'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Worker</button>
+        <select id="avail-filter" class="form-input form-select" onchange="loadWorkers()" style="width:160px">
+          <option value="">All Availability</option>
+          <option value="available">Available</option>
+          <option value="busy">Busy</option>
+          <option value="off_duty">Off Duty</option>
+          <option value="on_leave">On Leave</option>
+        </select>
+        <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button>
+      </div>
+    </header>
+    <div class="page-content">
+      <div class="worker-cards" id="workers-grid"><div class="page-loader"><span class="spinner"></span></div></div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+
+<!-- Add Worker Modal -->
+<div id="add-worker-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="width:100%;max-width:440px">
+    <div class="card-header"><h2 class="card-title">Add Worker</h2></div>
+    <div class="form-group"><label class="form-label">Full Name *</label><input id="w-name" class="form-input" placeholder="Worker name" /></div>
+    <div class="form-group"><label class="form-label">Email *</label><input id="w-email" class="form-input" type="email" placeholder="worker@email.com" /></div>
+    <div class="form-group"><label class="form-label">Phone</label><input id="w-phone" class="form-input" placeholder="Optional" /></div>
+    <div class="form-group"><label class="form-label">Department</label><select id="w-dept" class="form-input form-select"><option value="">Select department</option></select></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-muted" style="flex:1;justify-content:center" onclick="document.getElementById('add-worker-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addWorker()">Add Worker</button>
+    </div>
+  </div>
+</div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-area.js"></script>
+<script>
+  Auth.require("area_admin", "admin", "super_admin");
+  renderSidebar("workers");
+  initSidebar();
+  Theme.apply();
+  let allWorkers = [];
+  async function loadWorkers() {
+    try {
+      allWorkers = await API.areaAdmin.getWorkers();
+      const filter = document.getElementById("avail-filter").value;
+      let filtered = allWorkers;
+      if (filter) filtered = allWorkers.filter(w => w.availability === filter);
+      const el = document.getElementById("workers-grid");
+      if (!filtered.length) { el.innerHTML = '<div class="empty-state"><p>No workers found</p></div>'; return; }
+      el.innerHTML = filtered.map(w => {
+        const workloadPct = Math.min((w.current_workload || 0) / 10 * 100, 100);
+        const stars = Array(5).fill(0).map((_, i) => i < Math.round(w.rating || 0) ? '<span class="star-svg filled">' + I.star + '</span>' : '<span class="star-svg">' + I.starEmpty + '</span>').join("");
+        return `<div class="card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <div class="avatar" style="width:44px;height:44px;font-size:1.1rem">${(w.full_name||"W").charAt(0)}</div>
+            <div><div style="font-weight:600">${w.full_name}</div><div style="font-size:var(--text-xs);color:var(--text-muted)">${w.email}</div></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">${availabilityBadge(w.availability)}<span class="badge badge-muted">${w.department_name || ""}</span></div>
+          <div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:var(--text-xs);color:var(--text-muted);margin-bottom:4px"><span>Workload</span><span>${w.current_workload || 0} / 10</span></div><div class="progress-bar"><div class="progress-fill" style="width:${workloadPct}%"></div></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:var(--text-sm)"><span style="color:var(--text-muted)">Rating</span><span style="color:#f59e0b">${stars} ${Number(w.rating || 0).toFixed(1)}</span></div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:8px">${w.completed_count || 0} completed complaints</div>
+        </div>`;
+      }).join("");
+    } catch (err) { toast(err.message, "error"); }
+  }
+  loadWorkers();
+
+  async function loadDepts() {
+    try {
+      const depts = await API.admin.getDepartments();
+      const sel = document.getElementById("w-dept");
+      if (depts && depts.length) depts.forEach(d => { const o = document.createElement("option"); o.value = d.id; o.textContent = d.name; sel.appendChild(o); });
+    } catch {}
+  }
+  loadDepts();
+
+  async function addWorker() {
+    const full_name = document.getElementById("w-name").value.trim();
+    const email = document.getElementById("w-email").value.trim();
+    const phone = document.getElementById("w-phone").value.trim();
+    const department_id = document.getElementById("w-dept").value || undefined;
+    if (!full_name || !email) { toast("Name and email are required", "error"); return; }
+    try {
+      await API.areaAdmin.createWorker({ email, full_name, phone: phone || undefined, department_id });
+      toast("Worker added successfully", "success");
+      document.getElementById("add-worker-modal").style.display = "none";
+      document.getElementById("w-name").value = "";
+      document.getElementById("w-email").value = "";
+      document.getElementById("w-phone").value = "";
+      document.getElementById("w-dept").value = "";
+      loadWorkers();
+    } catch (err) { toast(err.message, "error"); }
+  }
+</script>
+</body>
+</html>

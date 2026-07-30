@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home — Municipal Services</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+  <div id="topnav"></div>
+  <div style="padding:24px;max-width:900px;margin:0 auto">
+    <div style="margin-bottom:24px">
+      <h1 style="font-family:var(--font-display);font-size:var(--text-2xl);margin-bottom:4px">Welcome, <span id="user-name">Citizen</span></h1>
+      <p style="color:var(--text-muted);font-size:var(--text-sm)">Report issues in your municipality and track their resolution.</p>
+    </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card stat-accent"><div class="stat-label">Submitted</div><div class="stat-value" id="stat-total">&mdash;</div></div>
+      <div class="stat-card stat-warning"><div class="stat-label">Pending</div><div class="stat-value" id="stat-pending">&mdash;</div></div>
+      <div class="stat-card" style="border-top:3px solid var(--info)"><div class="stat-label">In Progress</div><div class="stat-value" id="stat-inprogress">&mdash;</div></div>
+      <div class="stat-card stat-success"><div class="stat-label">Resolved</div><div class="stat-value" id="stat-completed">&mdash;</div></div>
+    </div>
+    <a href="submit-complaint.html" class="card" style="display:flex;align-items:center;gap:16px;cursor:pointer;transition:border-color 0.15s;margin-bottom:24px" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size:2.5rem">+</div>
+      <div><div style="font-weight:700;font-size:var(--text-lg)">Submit New Complaint</div><div style="font-size:var(--text-sm);color:var(--text-muted);margin-top:2px">Report a pothole, garbage issue, streetlight problem, or any civic issue</div></div>
+    </a>
+    <div class="card">
+      <div class="card-header"><h2 class="card-title">Recent Complaints</h2><a href="my-complaints.html" class="btn btn-sm btn-ghost">View All</a></div>
+      <div id="recent-complaints"></div>
+    </div>
+  </div>
+  <div id="toast-container"></div>
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/icons.js"></script>
+  <script src="../assets/js/utils.js"></script>
+  <script src="../assets/js/sidebar-citizen.js"></script>
+  <script>
+    Auth.require("citizen");
+    renderTopnav("dashboard");
+    Theme.apply();
+    const profile = Auth.getProfile();
+    document.getElementById("user-name").textContent = profile?.full_name || "Citizen";
+    async function loadDashboard() {
+      try {
+        const d = await API.citizen.getComplaints({ limit: 100 });
+        const all = d.complaints || [];
+        document.getElementById("stat-total").textContent = d.total;
+        document.getElementById("stat-pending").textContent = all.filter(c => c.status === "pending").length;
+        document.getElementById("stat-inprogress").textContent = all.filter(c => c.status === "in_progress" || c.status === "assigned").length;
+        document.getElementById("stat-completed").textContent = all.filter(c => c.status === "completed" || c.status === "verified" || c.status === "closed").length;
+        const recent = all.slice(0, 3);
+        const el = document.getElementById("recent-complaints");
+        if (!recent.length) { el.innerHTML = `<div class="empty-state"><div class="empty-icon">${I.clipboard}</div><p>No complaints yet. Submit your first!</p></div>`; return; }
+        el.innerHTML = recent.map(c => `<div class="complaint-card" style="margin-bottom:10px" onclick="location.href='complaint-detail.html?id=${c.id}'">
+          <div class="cc-header"><span class="cc-no">${c.complaint_no || ""}</span><div>${statusBadge(c.status)}</div></div>
+          <div class="cc-title">${c.title}</div>
+          <div class="cc-footer">${priorityBadge(c.priority)}<span class="cc-date">${formatDate(c.created_at)}</span></div>
+        </div>`).join("");
+      } catch (err) { toast(err.message, "error"); }
+    }
+    loadDashboard();
+  </script>
+</body>
+</html>

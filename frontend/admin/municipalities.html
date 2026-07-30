@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Municipalities — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="../assets/js/theme.js"></script>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body>
+<div class="app-layout">
+  <div class="main">
+    <header class="topbar">
+      <button class="sidebar-toggle" onclick="openSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+      <span class="topbar-title">Municipalities</span>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openModal('muni-modal')">+ Add Municipality</button>
+        <button class="theme-toggle" id="theme-toggle" onclick="Theme.toggle()"></button>
+      </div>
+    </header>
+    <div class="page-content">
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>City</th><th>State</th><th>Status</th><th>Users</th><th>Complaints</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody id="muni-tbody"><tr><td colspan="8"><div class="page-loader"><span class="spinner"></span> Loading...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="muni-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 class="modal-title" id="modal-title">Add Municipality</h2><button class="modal-close" onclick="closeModal('muni-modal')">&times;</button></div>
+    <input type="hidden" id="edit-id" />
+    <div class="form-group"><label class="form-label">Name *</label><input type="text" id="muni-name" class="form-input" placeholder="City Municipality" /></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">City</label><input type="text" id="muni-city" class="form-input" placeholder="City name" /></div>
+      <div class="form-group"><label class="form-label">State</label><input type="text" id="muni-state" class="form-input" placeholder="State" /></div>
+    </div>
+    <div class="form-group"><label class="form-label">Logo URL</label><input type="text" id="muni-logo" class="form-input" placeholder="https://..." /></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('muni-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveMuni()">Save</button>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/icons.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script src="../assets/js/sidebar-admin.js"></script>
+<script>
+  Auth.require("super_admin");
+  renderSidebar("municipalities");
+  initSidebar();
+  Theme.apply();
+  async function loadMunis() {
+    try {
+      const data = await API.admin.getMunicipalities();
+      const tbody = document.getElementById("muni-tbody");
+      if (!data.length) { tbody.innerHTML = emptyRow(8, "No municipalities yet."); return; }
+      tbody.innerHTML = data.map(m => `<tr>
+        <td><span style="font-weight:600">${m.name}</span></td>
+        <td style="color:var(--text-muted)">${m.city || "—"}</td>
+        <td style="color:var(--text-muted)">${m.state || "—"}</td>
+        <td><span class="badge badge-success">${m.status || "active"}</span></td>
+        <td><span class="badge badge-info">${m.total_users || 0}</span></td>
+        <td><span class="badge badge-muted">${m.total_complaints || 0}</span></td>
+        <td style="color:var(--text-muted)">${formatDate(m.created_at)}</td>
+        <td style="display:flex;gap:6px">
+          <button class="btn-icon" onclick='editMuni(${JSON.stringify(m)})'>${I.edit}</button>
+          <button class="btn-icon" onclick="deleteMuni('${m.id}')">${I.trash}</button>
+        </td>
+      </tr>`).join("");
+    } catch (err) { toast(err.message, "error"); }
+  }
+  function editMuni(m) {
+    document.getElementById("modal-title").textContent = "Edit Municipality";
+    document.getElementById("edit-id").value = m.id;
+    document.getElementById("muni-name").value = m.name;
+    document.getElementById("muni-city").value = m.city || "";
+    document.getElementById("muni-state").value = m.state || "";
+    document.getElementById("muni-logo").value = m.logo_url || "";
+    openModal("muni-modal");
+  }
+  function resetForm() {
+    document.getElementById("modal-title").textContent = "Add Municipality";
+    document.getElementById("edit-id").value = "";
+    ["muni-name","muni-city","muni-state","muni-logo"].forEach(id => document.getElementById(id).value = "");
+  }
+  async function saveMuni() {
+    const btn = document.getElementById("save-btn");
+    const id = document.getElementById("edit-id").value;
+    const body = { name: document.getElementById("muni-name").value.trim(), city: document.getElementById("muni-city").value.trim(), state: document.getElementById("muni-state").value.trim(), logo_url: document.getElementById("muni-logo").value.trim() };
+    if (!body.name) return toast("Name is required", "error");
+    setLoading(btn, true);
+    try {
+      if (id) { await API.admin.updateMunicipality(id, body); toast("Updated", "success"); }
+      else { await API.admin.createMunicipality(body); toast("Created", "success"); }
+      closeModal("muni-modal"); resetForm(); loadMunis();
+    } catch (err) { toast(err.message, "error"); }
+    finally { setLoading(btn, false); }
+  }
+  async function deleteMuni(id) {
+    if (!confirmDelete("Delete this municipality?")) return;
+    try { await API.admin.deleteMunicipality(id); toast("Deleted", "success"); loadMunis(); }
+    catch (err) { toast(err.message, "error"); }
+  }
+  loadMunis();
+</script>
+</body>
+</html>
