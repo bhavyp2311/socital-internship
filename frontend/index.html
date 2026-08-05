@@ -2,10 +2,559 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0;url=auth/login.html" />
-  <title>Redirecting...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nagar AI — Smart Municipal Complaint Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <script src="assets/js/theme.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script>
+    if (Auth.isLoggedIn()) Auth.redirectToDashboard();
+  </script>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .landing { background: var(--bg); min-height: 100vh; }
+    .landing-topnav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; gap: 20px;
+      padding: 0 28px; height: 64px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .landing-topnav .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--font-display); font-size: 1.1rem;
+    }
+    .landing-topnav .logo .logo-icon {
+      width: 34px; height: 34px; background: var(--accent);
+      border-radius: var(--radius); display: grid; place-items: center; color: #fff;
+    }
+    .landing-topnav .logo .logo-icon svg { width: 18px; height: 18px; }
+    .landing-topnav nav { display: flex; gap: 4px; margin-left: 24px; }
+    .landing-topnav nav a {
+      padding: 8px 14px; border-radius: var(--radius); font-size: var(--text-sm);
+      color: var(--text-muted); transition: all 0.15s;
+    }
+    .landing-topnav nav a:hover { color: var(--text); background: var(--surface-2); }
+    .landing-topnav .topnav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .landing-hero {
+      padding: 84px 28px 72px;
+      display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 48px;
+      align-items: center; max-width: 1180px; margin: 0 auto;
+    }
+    .landing-hero .badge-line {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border-radius: 20px;
+      background: var(--accent-light); color: var(--accent);
+      font-size: var(--text-xs); font-weight: 600; margin-bottom: 20px;
+    }
+    .landing-hero h1 {
+      font-family: var(--font-display); font-weight: 400;
+      font-size: clamp(2.1rem, 4.5vw, 3.4rem); line-height: 1.12;
+      margin-bottom: 18px;
+    }
+    .landing-hero h1 span { color: var(--accent); }
+    .landing-hero p.lead { font-size: var(--text-md); color: var(--text-muted); max-width: 520px; margin-bottom: 30px; }
+    .landing-hero .cta-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .landing-hero .cta-row .btn { padding: 12px 24px; font-size: var(--text-md); }
+    .hero-visual {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-xl); padding: 26px; box-shadow: var(--shadow-lg);
+    }
+    .hero-visual .hero-card-title { font-weight: 700; font-size: var(--text-sm); margin-bottom: 14px; color: var(--text-muted); }
+    .hero-visual .flow-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .hero-visual .flow-step {
+      flex: 1; text-align: center; padding: 12px 8px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: var(--text-xs); font-weight: 600;
+    }
+    .hero-visual .flow-arrow { color: var(--accent); font-size: var(--text-md); font-weight: 700; }
+    .hero-visual .status-row { display: flex; gap: 8px; margin-top: 16px; }
+    .hero-visual .mini-stat {
+      flex: 1; text-align: center; padding: 12px 8px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface); border-top: 3px solid var(--accent);
+    }
+    .hero-visual .mini-stat .v { font-size: var(--text-xl); font-weight: 700; }
+    .hero-visual .mini-stat .l { font-size: var(--text-xs); color: var(--text-muted); }
+    .stats-strip {
+      max-width: 1180px; margin: 0 auto; padding: 0 28px 56px;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    }
+    .stats-strip .stat {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px 20px; text-align: center;
+      box-shadow: var(--shadow-sm); border-top: 3px solid var(--accent);
+    }
+    .stats-strip .stat .v { font-family: var(--font-display); font-size: var(--text-2xl); color: var(--accent); }
+    .stats-strip .stat .l { font-size: var(--text-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+    .landing-section { padding: 72px 28px; max-width: 1180px; margin: 0 auto; }
+    .landing-section h2 {
+      font-family: var(--font-display); font-weight: 400;
+      font-size: clamp(1.6rem, 3vw, 2.2rem); text-align: center; margin-bottom: 12px;
+    }
+    .landing-section .section-sub { text-align: center; color: var(--text-muted); max-width: 620px; margin: 0 auto 44px; }
+    .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; }
+    .why-grid .why-text h3 { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.4rem, 2.5vw, 1.9rem); margin-bottom: 14px; }
+    .why-grid .why-text p { color: var(--text-muted); font-size: var(--text-md); margin-bottom: 22px; }
+    .why-grid .why-points { display: flex; flex-direction: column; gap: 14px; }
+    .why-grid .why-point { display: flex; gap: 14px; align-items: flex-start; }
+    .why-grid .why-point .wp-icon {
+      flex-shrink: 0; width: 38px; height: 38px; border-radius: var(--radius-lg);
+      background: var(--accent-light); color: var(--accent);
+      display: grid; place-items: center;
+    }
+    .why-grid .why-point .wp-icon svg { width: 18px; height: 18px; }
+    .why-grid .why-point h4 { font-weight: 700; font-size: var(--text-sm); margin-bottom: 2px; }
+    .why-grid .why-point p { font-size: var(--text-sm); color: var(--text-muted); margin: 0; }
+    .why-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-xl); padding: 30px; box-shadow: var(--shadow-lg);
+    }
+    .why-card .wcard-title { font-weight: 700; font-size: var(--text-sm); color: var(--text-muted); margin-bottom: 16px; }
+    .why-card .wcard-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: var(--text-sm); }
+    .why-card .wcard-row:last-child { border-bottom: none; }
+    .why-card .wcard-row svg { width: 18px; height: 18px; color: var(--success); flex-shrink: 0; }
+    .why-card .wcard-row .wcard-status { margin-left: auto; font-size: var(--text-xs); font-weight: 600; }
+    .why-card .wcard-row .wcard-status.auto { color: var(--accent); }
+    .why-card .wcard-row .wcard-status.ai { color: var(--warning); }
+    .why-card .wcard-row .wcard-status.done { color: var(--success); }
+    .tech-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+    .tech-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm);
+      transition: border-color 0.15s;
+    }
+    .tech-card:hover { border-color: var(--accent); }
+    .tech-card .t-icon {
+      width: 42px; height: 42px; border-radius: var(--radius-lg);
+      background: var(--surface-2); color: var(--accent);
+      display: grid; place-items: center; margin-bottom: 14px;
+    }
+    .tech-card .t-icon svg { width: 20px; height: 20px; }
+    .tech-card h3 { font-weight: 700; font-size: var(--text-sm); margin-bottom: 6px; }
+    .tech-card p { font-size: var(--text-xs); color: var(--text-muted); line-height: 1.6; }
+    .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .feature-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 26px; box-shadow: var(--shadow-sm);
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .feature-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .feature-card .f-icon {
+      width: 46px; height: 46px; border-radius: var(--radius-lg);
+      background: var(--accent-light); color: var(--accent);
+      display: grid; place-items: center; margin-bottom: 16px;
+    }
+    .feature-card .f-icon svg { width: 22px; height: 22px; }
+    .feature-card h3 { font-weight: 700; font-size: var(--text-md); margin-bottom: 8px; }
+    .feature-card p { font-size: var(--text-sm); color: var(--text-muted); }
+    .roles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .role-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm);
+    }
+    .role-card .role-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: var(--text-xs); font-weight: 700; margin-bottom: 14px; }
+    .role-card h3 { font-weight: 700; font-size: var(--text-md); margin-bottom: 8px; }
+    .role-card ul { list-style: none; font-size: var(--text-sm); color: var(--text-muted); }
+    .role-card ul li { padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+    .role-card ul li svg { width: 16px; height: 16px; color: var(--success); flex-shrink: 0; }
+    .how-list { max-width: 760px; margin: 0 auto; }
+    .how-item { display: flex; gap: 18px; margin-bottom: 26px; }
+    .how-item .num {
+      flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+      background: var(--accent); color: #fff; font-weight: 700;
+      display: grid; place-items: center; font-size: var(--text-md);
+    }
+    .how-item h3 { font-weight: 700; font-size: var(--text-md); margin-bottom: 4px; }
+    .how-item p { font-size: var(--text-sm); color: var(--text-muted); }
+    .landing-cta {
+      padding: 72px 28px; text-align: center;
+      background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .landing-cta h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.6rem, 3vw, 2.2rem); margin-bottom: 14px; }
+    .landing-cta p { color: var(--text-muted); margin-bottom: 26px; }
+    .landing-cta .btn { padding: 13px 30px; font-size: var(--text-md); }
+    .landing-footer {
+      padding: 28px; text-align: center; color: var(--text-muted);
+      font-size: var(--text-sm);
+    }
+    .landing-footer .logo {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--font-display); color: var(--text); margin-bottom: 6px;
+    }
+    .landing-footer .logo .logo-icon {
+      width: 24px; height: 24px; background: var(--accent);
+      border-radius: var(--radius-sm); display: grid; place-items: center; color: #fff;
+    }
+    .landing-footer .logo .logo-icon svg { width: 13px; height: 13px; }
+    @media (max-width: 960px) {
+      .landing-hero { grid-template-columns: 1fr; padding: 56px 20px 48px; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .roles-grid { grid-template-columns: 1fr; }
+      .tech-grid { grid-template-columns: 1fr; }
+      .stats-strip { grid-template-columns: repeat(2, 1fr); padding: 0 20px 40px; }
+      .why-grid { grid-template-columns: 1fr; gap: 28px; }
+      .landing-topnav nav { display: none; }
+      .landing-section { padding: 52px 20px; }
+    }
+  </style>
 </head>
 <body>
-  <p>Redirecting to <a href="auth/login.html">login</a>...</p>
+  <div class="landing">
+    <!-- Top Nav -->
+    <header class="landing-topnav">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></svg>
+        </div>
+        Nagar AI
+      </div>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#roles">Roles</a>
+        <a href="#how">How it works</a>
+        <a href="#tech">Tech stack</a>
+      </nav>
+      <div class="topnav-right">
+        <button id="theme-toggle" class="theme-toggle" onclick="Theme.toggle()" aria-label="Toggle theme"></button>
+        <a href="auth/login.html" class="btn btn-primary">Login</a>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="landing-hero">
+      <div>
+        <div class="badge-line">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          AI-powered municipal complaint management
+        </div>
+        <h1>Your city's complaints,<br />solved <span>automatically.</span></h1>
+        <p class="lead">
+          Nagar AI is a full-stack municipal complaint management system that uses AI to
+          classify, prioritize, and auto-assign every citizen complaint to the right worker —
+          from submission to resolution.
+        </p>
+        <div class="cta-row">
+          <a href="auth/login.html" class="btn btn-primary">Login to get started</a>
+          <a href="auth/register.html" class="btn btn-ghost">Register as citizen</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-card-title">Complaint lifecycle</div>
+        <div class="flow-row">
+          <div class="flow-step">Citizen submits</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">AI classifies</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">Auto-assigned</div>
+        </div>
+        <div class="flow-row">
+          <div class="flow-step">Worker accepts</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">In progress</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step">Completed</div>
+        </div>
+        <div class="status-row">
+          <div class="mini-stat"><div class="v">AI</div><div class="l">Classification</div></div>
+          <div class="mini-stat"><div class="v">GPS</div><div class="l">Ward detection</div></div>
+          <div class="mini-stat"><div class="v">Auto</div><div class="l">Assignment</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats strip -->
+    <section class="stats-strip">
+      <div class="stat"><div class="v">5</div><div class="l">Role Portals</div></div>
+      <div class="stat"><div class="v">55+</div><div class="l">API Endpoints</div></div>
+      <div class="stat"><div class="v">19</div><div class="l">Database Tables</div></div>
+      <div class="stat"><div class="v">100%</div><div class="l">Auto Assignment</div></div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="landing-section">
+      <h2>Everything your municipality needs</h2>
+      <p class="section-sub">
+        From the moment a citizen reports an issue to the moment it is resolved and verified,
+        Nagar AI keeps every step organized and automatic.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></div>
+          <h3>AI Auto-Classification</h3>
+          <p>Groq's LLaMA model analyzes every complaint's title and description to classify its category, priority, and department — instantly.</p>
+        </div>
+        <div class="feature-card">
+          <div class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></div>
+          <h3>GPS Ward Detection</h3>
+          <p>PostGIS maps complaint coordinates to the correct ward automatically, so nothing falls through the cracks.</p>
+        </div>
+        <div class="feature-card">
+          <div class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z"/><path d="M10 15V6a2 2 0 1 1 4 0v9"/><path d="M4 15v-3a8 8 0 0 1 16 0v3"/></svg></div>
+          <h3>Smart Auto-Assignment</h3>
+          <p>Each complaint is assigned to the available worker with the lowest workload, keeping response times fast and fair.</p>
+        </div>
+        <div class="feature-card">
+          <div class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></div>
+          <h3>Full Lifecycle Tracking</h3>
+          <p>Follow every complaint from pending → assigned → accepted → in progress → completed → verified with a transparent timeline.</p>
+        </div>
+        <div class="feature-card">
+          <div class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <h3>5 Role-Based Portals</h3>
+          <p>Dedicated dashboards for super admins, admins, area admins, workers, and citizens — each with exactly the tools they need.</p>
+        </div>
+        <div class="feature-card">
+          <div class="f-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></div>
+          <h3>Photo-Verified Resolutions</h3>
+          <p>Workers upload progress and completion photos, and area admins verify the work before a complaint is closed.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why Nagar AI -->
+    <section class="landing-section" style="padding-top:0;">
+      <div class="why-grid">
+        <div class="why-text">
+          <h2 style="text-align:left;margin-bottom:14px;">Why Nagar AI?</h2>
+          <p>
+            Municipalities lose time and trust when complaints get lost in spreadsheets, phone calls,
+            and manual hand-offs. Nagar AI removes the guesswork with a single automated pipeline
+            that every stakeholder sees in real time.
+          </p>
+          <div class="why-points">
+            <div class="why-point">
+              <div class="wp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+              <div>
+                <h4>Faster response times</h4>
+                <p>Complaints skip the queue — AI classifies and assigns in seconds, not days.</p>
+              </div>
+            </div>
+            <div class="why-point">
+              <div class="wp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></div>
+              <div>
+                <h4>Full transparency</h4>
+                <p>Citizens track their complaint from submission to verification with a public timeline.</p>
+              </div>
+            </div>
+            <div class="why-point">
+              <div class="wp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
+              <div>
+                <h4>Accountable workforce</h4>
+                <p>Photo proof, worker ratings, and workload tracking keep everyone accountable.</p>
+              </div>
+            </div>
+            <div class="why-point">
+              <div class="wp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+              <div>
+                <h4>Zero data loss</h4>
+                <p>Every complaint, assignment, and update lives in a structured PostGIS database.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="why-card">
+          <div class="wcard-title">A complaint's journey — no human needed</div>
+          <div class="wcard-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            Location pinned on map
+            <span class="wcard-status done">Done</span>
+          </div>
+          <div class="wcard-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>
+            AI classifies category & priority
+            <span class="wcard-status ai">AI</span>
+          </div>
+          <div class="wcard-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Worker auto-assigned (lowest load)
+            <span class="wcard-status auto">Auto</span>
+          </div>
+          <div class="wcard-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z"/><path d="M10 15V6a2 2 0 1 1 4 0v9"/><path d="M4 15v-3a8 8 0 0 1 16 0v3"/></svg>
+            Worker uploads photo proof
+            <span class="wcard-status done">Done</span>
+          </div>
+          <div class="wcard-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+            Area admin verifies & closes
+            <span class="wcard-status auto">Verify</span>
+          </div>
+          <div class="wcard-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Citizen notified & rates the work
+            <span class="wcard-status done">Done</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Roles -->
+    <section id="roles" class="landing-section" style="padding-top:0;">
+      <h2>Built for every stakeholder</h2>
+      <p class="section-sub">
+        Five connected portals, one shared system. Everyone sees the same complaint in real time.
+      </p>
+      <div class="roles-grid">
+        <div class="role-card">
+          <span class="role-badge" style="background:#2563eb18;color:var(--accent);">Super Admin</span>
+          <h3>Full oversight</h3>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Manage municipalities</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Zones, wards & subscriptions</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Platform-wide analytics</li>
+          </ul>
+        </div>
+        <div class="role-card">
+          <span class="role-badge" style="background:#4f46e518;color:#4f46e5;">Admin</span>
+          <h3>Municipality setup</h3>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Manage zones, wards, departments</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Invite & manage users</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Monitor municipal performance</li>
+          </ul>
+        </div>
+        <div class="role-card">
+          <span class="role-badge" style="background:#0284c718;color:var(--info);">Area Admin</span>
+          <h3>Ward management</h3>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Own their ward's complaints</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Add & assign workers</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Verify completed work</li>
+          </ul>
+        </div>
+        <div class="role-card">
+          <span class="role-badge" style="background:#15803d18;color:var(--success);">Worker</span>
+          <h3>Field execution</h3>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Accept assigned complaints</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Set availability & workload</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Upload proof & complete work</li>
+          </ul>
+        </div>
+        <div class="role-card">
+          <span class="role-badge" style="background:#b4530918;color:var(--warning);">Citizen</span>
+          <h3>Reporting made easy</h3>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Submit complaints in 3 steps</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Pin location on a map</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Track status & give feedback</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how" class="landing-section" style="padding-top:0;">
+      <h2>How it works</h2>
+      <p class="section-sub">A complaint travels a fully automated path from the citizen's phone to a verified resolution.</p>
+      <div class="how-list">
+        <div class="how-item">
+          <div class="num">1</div>
+          <div>
+            <h3>Citizen submits a complaint</h3>
+            <p>Title, description, priority, and a GPS pin on the map. Optional photos up to 3.</p>
+          </div>
+        </div>
+        <div class="how-item">
+          <div class="num">2</div>
+          <div>
+            <h3>AI classifies & detects the ward</h3>
+            <p>The system detects which ward the location falls in and AI classifies category, priority, and department.</p>
+          </div>
+        </div>
+        <div class="how-item">
+          <div class="num">3</div>
+          <div>
+            <h3>Auto-assigned to a worker</h3>
+            <p>The complaint is assigned to the available worker with the lowest workload in that ward.</p>
+          </div>
+        </div>
+        <div class="how-item">
+          <div class="num">4</div>
+          <div>
+            <h3>Worker resolves & uploads proof</h3>
+            <p>The worker accepts, works, and uploads progress and completion photos.</p>
+          </div>
+        </div>
+        <div class="how-item">
+          <div class="num">5</div>
+          <div>
+            <h3>Area admin verifies & closes</h3>
+            <p>Completed work is verified, then the complaint is closed and the citizen is notified.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tech stack -->
+    <section id="tech" class="landing-section" style="padding-top:0;">
+      <h2>Powered by a modern stack</h2>
+      <p class="section-sub">Built with reliable, open technologies that scale from a single ward to an entire state.</p>
+      <div class="tech-grid">
+        <div class="tech-card">
+          <div class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22v-4"/><path d="M12 8V4"/><path d="M4 20v-4"/><path d="M4 8V4"/><path d="M20 20v-4"/><path d="M20 8V4"/><path d="M4 12h16"/><path d="M12 4 4 8"/><path d="m20 8-8 4"/><path d="m4 16 8-4"/><path d="m20 16-8-4"/></svg></div>
+          <h3>Frontend</h3>
+          <p>HTML5, CSS3, and Vanilla JS with the DM Serif Display + DM Sans type system and dark/light themes.</p>
+        </div>
+        <div class="tech-card">
+          <div class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17v-9a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9"/><path d="M2 17h20"/><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M9 13h6"/></svg></div>
+          <h3>Backend</h3>
+          <p>Node.js + Express 5 (ES Modules) exposing 55+ REST endpoints with layered services and route guards.</p>
+        </div>
+        <div class="tech-card">
+          <div class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg></div>
+          <h3>Database</h3>
+          <p>PostgreSQL via Supabase with PostGIS for real-time ward detection from GPS coordinates.</p>
+        </div>
+        <div class="tech-card">
+          <div class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></div>
+          <h3>AI Engine</h3>
+          <p>Groq API (LLaMA 3) classifies category, priority, and department for every complaint in real time.</p>
+        </div>
+        <div class="tech-card">
+          <div class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div>
+          <h3>Auth & Security</h3>
+          <p>JWT access + refresh tokens, OTP email verification, invite links, and role-based route protection.</p>
+        </div>
+        <div class="tech-card">
+          <div class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></div>
+          <h3>Media & Maps</h3>
+          <p>Cloudinary for complaint images and Leaflet + OpenStreetMap for interactive location picking.</p>
+        </div>
+        <div class="tech-card">
+          <div class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>
+          <h3>Email</h3>
+          <p>Brevo (Sendinblue) powers invitations, OTPs, and complaint status notifications to every user.</p>
+        </div>
+        <div class="tech-card">
+          <div class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+          <h3>Notifications</h3>
+          <p>In-app notification center with unread badges, filters, and priority levels for every event.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="landing-cta">
+      <h2>Ready to manage your city smarter?</h2>
+      <p>Log in to your role portal or create a citizen account to start reporting.</p>
+      <a href="auth/login.html" class="btn btn-primary">Login to Nagar AI</a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+      <div class="logo">
+        <div class="logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/></svg></div>
+        Nagar AI
+      </div>
+      <p>Smart municipal complaint management powered by AI, GIS, and your workforce.</p>
+    </footer>
+  </div>
+
+  <script src="assets/js/icons.js"></script>
+  <script>
+    Theme.apply();
+  </script>
 </body>
 </html>
